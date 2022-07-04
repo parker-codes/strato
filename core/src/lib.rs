@@ -12,7 +12,13 @@ impl StratoMachine {
     }
 
     pub fn add_player(&mut self, player: Player) {
-        self.context.players.push(player);
+        if self.state == GameState::WaitingForPlayers {
+            self.context.players.push(player);
+        }
+    }
+
+    pub fn list_players(&self) -> Vec<Player> {
+        self.context.players.clone()
     }
 
     pub fn start(&mut self) {
@@ -32,10 +38,10 @@ pub enum GameState {
 
 #[derive(Debug, Default)]
 pub struct GameContext {
-    players: Vec<Player>,
+    pub players: Vec<Player>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct Player {
     pub name: &'static str,
 }
@@ -91,5 +97,30 @@ mod tests {
         game.start();
         game.start();
         assert_eq!(game.state, GameState::Active);
+    }
+
+    #[test]
+    pub fn can_list_players() {
+        let mut game = StratoMachine::new();
+        let player_1 = Player::new("Parker");
+        game.add_player(player_1);
+        let player_2 = Player::new("Lexi");
+        game.add_player(player_2);
+        assert_eq!(game.list_players(), vec![player_1, player_2]);
+    }
+
+    #[test]
+    pub fn cant_change_players_after_game_starts() {
+        let mut game = StratoMachine::new();
+        let player_1 = Player::new("Parker");
+        game.add_player(player_1);
+        let player_2 = Player::new("Lexi");
+        game.add_player(player_2);
+        game.start();
+        assert_eq!(game.state, GameState::Active);
+
+        let player_3 = Player::new("Trevor");
+        game.add_player(player_3);
+        assert_eq!(game.list_players(), vec![player_1, player_2]);
     }
 }
