@@ -1,9 +1,9 @@
-pub struct StratoMachine {
+pub struct StratoGame {
     pub state: GameState,
     pub context: GameContext,
 }
 
-impl StratoMachine {
+impl StratoGame {
     pub fn new() -> Self {
         Self {
             state: GameState::default(),
@@ -58,13 +58,13 @@ mod tests {
 
     #[test]
     fn a_game_can_be_initialized() {
-        let game = StratoMachine::new();
+        let game = StratoGame::new();
         assert_eq!(game.state, GameState::WaitingForPlayers);
     }
 
     #[test]
     fn players_can_be_added() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
         assert_eq!(game.state, GameState::WaitingForPlayers);
@@ -72,7 +72,7 @@ mod tests {
 
     #[test]
     fn a_game_can_be_started() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
         game.start();
@@ -81,14 +81,14 @@ mod tests {
 
     #[test]
     fn cant_start_without_players() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         game.start();
         assert_eq!(game.state, GameState::WaitingForPlayers);
     }
 
     #[test]
     fn starting_multiple_times_is_inconsequential() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
         game.start();
@@ -101,7 +101,7 @@ mod tests {
 
     #[test]
     pub fn can_list_players() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
         let player_2 = Player::new("Lexi");
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     pub fn cant_change_players_after_game_starts() {
-        let mut game = StratoMachine::new();
+        let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
         let player_2 = Player::new("Lexi");
