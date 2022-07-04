@@ -52,6 +52,88 @@ impl Player {
     }
 }
 
+struct Card {
+    value: CardValue,
+    visible: bool,
+}
+
+impl Card {
+    fn new(value: i32) -> Self {
+        Self {
+            value: CardValue::from(value),
+            visible: false,
+        }
+    }
+}
+
+#[derive(Debug, PartialEq, Clone)]
+enum CardValue {
+    NegativeTwo,
+    NegativeOne,
+    Zero,
+    One,
+    Two,
+    Three,
+    Four,
+    Five,
+    Six,
+    Seven,
+    Eight,
+    Nine,
+    Ten,
+    Eleven,
+    Twelve,
+}
+
+impl From<i32> for CardValue {
+    fn from(value: i32) -> Self {
+        use CardValue::*;
+
+        match value {
+            -2 => NegativeTwo,
+            -1 => NegativeOne,
+            0 => Zero,
+            1 => One,
+            2 => Two,
+            3 => Three,
+            4 => Four,
+            5 => Five,
+            6 => Six,
+            7 => Seven,
+            8 => Eight,
+            9 => Nine,
+            10 => Ten,
+            11 => Eleven,
+            12 => Twelve,
+            _ => panic!("Not a valid card value!"),
+        }
+    }
+}
+
+impl From<CardValue> for i32 {
+    fn from(value: CardValue) -> Self {
+        use CardValue::*;
+
+        match value {
+            NegativeTwo => -2,
+            NegativeOne => -1,
+            Zero => 0,
+            One => 1,
+            Two => 2,
+            Three => 3,
+            Four => 4,
+            Five => 5,
+            Six => 6,
+            Seven => 7,
+            Eight => 8,
+            Nine => 9,
+            Ten => 10,
+            Eleven => 11,
+            Twelve => 12,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -122,5 +204,31 @@ mod tests {
         let player_3 = Player::new("Trevor");
         game.add_player(player_3);
         assert_eq!(game.list_players(), vec![player_1, player_2]);
+    }
+
+    #[test]
+    fn cards_have_value() {
+        assert_eq!(CardValue::from(-2), CardValue::NegativeTwo);
+        assert_eq!(CardValue::from(0), CardValue::Zero);
+        assert_eq!(CardValue::from(4), CardValue::Four);
+        assert_eq!(CardValue::from(12), CardValue::Twelve);
+
+        assert_eq!(i32::from(CardValue::NegativeTwo), -2);
+        assert_eq!(i32::from(CardValue::Zero), 0);
+        assert_eq!(i32::from(CardValue::Ten), 10);
+    }
+
+    #[test]
+    #[should_panic]
+    #[allow(unused_must_use)]
+    fn card_must_fit_in_valid_range() {
+        CardValue::from(-3);
+    }
+
+    #[test]
+    fn card_has_value_and_starts_hidden() {
+        let card = Card::new(5);
+        assert_eq!(card.value, CardValue::Five);
+        assert!(!card.visible);
     }
 }
