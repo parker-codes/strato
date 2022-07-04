@@ -52,6 +52,7 @@ impl Player {
     }
 }
 
+#[derive(Debug, PartialEq)]
 struct Card {
     value: CardValue,
     visible: bool,
@@ -131,6 +132,28 @@ impl From<CardValue> for i32 {
             Eleven => 11,
             Twelve => 12,
         }
+    }
+}
+
+struct Deck(Vec<Card>);
+
+impl Deck {
+    /// Create a new deck which consists of ten full sets of -2 through 12.
+    fn new() -> Self {
+        let cards = (0..10)
+            .map(|_| (-2..=12).map(|n| Card::new(n)).collect::<Vec<_>>())
+            .flatten()
+            .collect::<Vec<_>>();
+        Self(cards)
+    }
+
+    fn size(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Draw a card from the top of the deck.
+    fn draw(&mut self) -> Option<Card> {
+        self.0.pop()
     }
 }
 
@@ -230,5 +253,37 @@ mod tests {
         let card = Card::new(5);
         assert_eq!(card.value, CardValue::Five);
         assert!(!card.visible);
+    }
+
+    #[test]
+    fn can_initialize_deck_in_order() {
+        let mut deck = Deck::new();
+        assert_eq!(deck.draw(), Some(Card::new(12)));
+    }
+
+    #[test]
+    fn deck_has_a_size() {
+        let mut deck = Deck::new();
+        assert_eq!(deck.size(), 150);
+        deck.draw();
+        deck.draw();
+        deck.draw();
+        assert_eq!(deck.size(), 147);
+    }
+
+    #[test]
+    fn a_deck_can_be_depleted() {
+        let mut deck = Deck::new();
+
+        for _ in 1..deck.size() {
+            deck.draw();
+        }
+
+        let last_card = deck.draw();
+        assert_eq!(last_card, Some(Card::new(-2)));
+
+        // now depleted
+        assert_eq!(deck.draw(), None);
+        assert_eq!(deck.size(), 0);
     }
 }
