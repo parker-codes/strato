@@ -23,6 +23,8 @@ impl StratoGame {
 
     pub fn start(&mut self) {
         if self.state == GameState::WaitingForPlayers && self.context.players.len() > 0 {
+            self.context.deck = Deck::new();
+
             self.state = GameState::Active;
         }
     }
@@ -39,6 +41,7 @@ pub enum GameState {
 #[derive(Debug, Default)]
 pub struct GameContext {
     pub players: Vec<Player>,
+    pub deck: Deck,
 }
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
@@ -135,7 +138,8 @@ impl From<CardValue> for i32 {
     }
 }
 
-struct Deck(Vec<Card>);
+#[derive(Debug, Default)]
+pub struct Deck(Vec<Card>);
 
 impl Deck {
     /// Create a new deck which consists of ten full sets of -2 through 12.
@@ -156,6 +160,8 @@ impl Deck {
         self.0.pop()
     }
 }
+
+struct DiscardPile(Vec<Card>);
 
 #[cfg(test)]
 mod tests {
@@ -182,6 +188,7 @@ mod tests {
         game.add_player(player_1);
         game.start();
         assert_eq!(game.state, GameState::Active);
+        assert_eq!(game.context.deck.size(), 150);
     }
 
     #[test]
