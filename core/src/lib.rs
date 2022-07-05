@@ -1,3 +1,5 @@
+use rand::Rng;
+
 pub struct StratoGame {
     pub state: GameState,
     pub context: GameContext,
@@ -55,7 +57,7 @@ impl Player {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 struct Card {
     value: CardValue,
     visible: bool,
@@ -70,7 +72,7 @@ impl Card {
     }
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 enum CardValue {
     NegativeTwo,
     NegativeOne,
@@ -138,7 +140,7 @@ impl From<CardValue> for i32 {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct Deck(Vec<Card>);
 
 impl Deck {
@@ -153,6 +155,62 @@ impl Deck {
 
     fn size(&self) -> usize {
         self.0.len()
+    }
+
+    /// Mimic human shuffle by splitting (sort of) in half and then zipping together (imperfectly), repeated
+    /// a loose number of times. Then do some swaps until it feels right. 😄
+    fn shuffle(&mut self) {
+        let mut rng = rand::thread_rng();
+
+        let times_to_shuffle = rng.gen_range(4..=7);
+        let middle = self.size() / 2;
+        let max_variance_from_middle = self.size() / 10;
+
+        let mut left_hand = self.0.clone();
+
+        for _ in 0..times_to_shuffle {
+            let variance_from_middle = rng.gen_range(0..max_variance_from_middle);
+            let guess_at_middle = if rng.gen_bool(1.0 / 2.0) {
+                middle.checked_add(variance_from_middle).unwrap_or(middle)
+            } else {
+                middle.checked_sub(variance_from_middle).unwrap_or(middle)
+            };
+
+            let mut right_hand = left_hand.split_off(guess_at_middle);
+
+            let mut shuffled: Vec<Card> = Vec::new();
+
+            loop {
+                if left_hand.is_empty() && right_hand.is_empty() {
+                    break;
+                }
+
+                let left_cards_to_take = rng.gen_range(1..4);
+                for _ in 0..left_cards_to_take {
+                    if let Some(card) = left_hand.pop() {
+                        shuffled.push(card);
+                    }
+                }
+
+                let right_cards_to_take = rng.gen_range(1..4);
+                for _ in 0..right_cards_to_take {
+                    if let Some(card) = right_hand.pop() {
+                        shuffled.push(card);
+                    }
+                }
+            }
+
+            left_hand = shuffled;
+        }
+
+        let number_of_swaps = rng.gen_range(4..12);
+        for _ in 0..number_of_swaps {
+            let first = rng.gen_range(0..self.size());
+            let second = rng.gen_range(0..self.size());
+            left_hand.swap(first, second);
+        }
+
+        self.0 = left_hand;
     }
 
     /// Draw a card from the top of the deck.
@@ -292,5 +350,28 @@ mod tests {
         // now depleted
         assert_eq!(deck.draw(), None);
         assert_eq!(deck.size(), 0);
+    }
+
+    #[test]
+    fn deck_can_be_shuffled() {
+        let mut deck = Deck::new();
+        let snapshot = deck.clone();
+        deck.shuffle();
+        assert_eq!(deck.size(), 150);
+        assert_ne!(deck, snapshot);
+    }
+
+    #[test]
+    fn small_deck_can_be_shuffled() {
+        let mut deck = Deck::new();
+
+        for _ in 0..(deck.size() - 10) {
+            deck.draw();
+        }
+        assert_eq!(deck.size(), 10);
+
+        let snapshot = deck.clone();
+        deck.shuffle();
+        assert_ne!(deck, snapshot);
     }
 }
