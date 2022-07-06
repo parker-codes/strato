@@ -2,6 +2,8 @@ use card::Deck;
 
 mod card;
 
+use card::Card;
+
 pub struct StratoGame {
     pub state: GameState,
     pub context: GameContext,
@@ -31,6 +33,8 @@ impl StratoGame {
             deck.shuffle();
             self.context.deck = deck;
 
+            // TODO: shuffle player order
+
             self.state = GameState::Active;
         }
     }
@@ -52,13 +56,65 @@ pub struct GameContext {
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct Player {
+    /// The player's chosen name or alias.
     pub name: &'static str,
+    /// The card the user has in-hand after drawing from the deck or taking from the discard pile.
+    pub holding: Option<Card>,
 }
 
 impl Player {
     pub fn new(name: &'static str) -> Self {
-        Self { name }
+        Self {
+            name,
+            holding: None,
+        }
     }
+
+    pub fn start_turn(&self, action: StartAction) -> PlayerTurnStart {
+        PlayerTurnStart {
+            player: self,
+            action,
+        }
+    }
+
+    pub fn end_turn(&self, action: EndAction) -> PlayerTurnEnd {
+        PlayerTurnEnd {
+            player: self,
+            action,
+        }
+    }
+
+    pub fn hold(&mut self, card: Card) {
+        self.holding = Some(card);
+    }
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PlayerTurnStart<'a> {
+    player: &'a Player,
+    action: StartAction,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct PlayerTurnEnd<'a> {
+    player: &'a Player,
+    action: EndAction,
+}
+
+/// The way the player chooses to start their turn.
+#[derive(Debug, PartialEq)]
+pub enum StartAction {
+    DrawFromDeck,
+    TakeFromDiscardPile,
+}
+
+/// The way the player chooses to end their turn.
+#[derive(Debug, PartialEq)]
+pub enum EndAction {
+    /// Row and Column are 1-based, not 0.
+    Swap { row: u8, column: u8 },
+    /// Row and Column are 1-based, not 0.
+    Flip { row: u8, column: u8 },
 }
 
 #[cfg(test)]
@@ -112,7 +168,7 @@ mod tests {
     }
 
     #[test]
-    pub fn can_list_players() {
+    fn can_list_players() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
@@ -122,7 +178,7 @@ mod tests {
     }
 
     #[test]
-    pub fn cant_change_players_after_game_starts() {
+    fn cant_change_players_after_game_starts() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
         game.add_player(player_1);
@@ -134,5 +190,51 @@ mod tests {
         let player_3 = Player::new("Trevor");
         game.add_player(player_3);
         assert_eq!(game.list_players(), vec![player_1, player_2]);
+    }
+
+    #[test]
+    fn a_player_can_draw_and_flip() {
+        let player = Player::new("Trevor");
+
+        let start = player.start_turn(StartAction::DrawFromDeck);
+        assert_eq!(
+            start,
+            PlayerTurnStart {
+                player: &player,
+                action: StartAction::DrawFromDeck
+            }
+        );
+
+        let end = player.end_turn(EndAction::Flip { row: 1, column: 2 });
+        assert_eq!(
+            end,
+            PlayerTurnEnd {
+                player: &player,
+                action: EndAction::Flip { row: 1, column: 2 }
+            }
+        );
+    }
+
+    #[test]
+    fn a_player_can_take_and_swap() {
+        let player = Player::new("Jon");
+
+        let start = player.start_turn(StartAction::TakeFromDiscardPile);
+        assert_eq!(
+            start,
+            PlayerTurnStart {
+                player: &player,
+                action: StartAction::TakeFromDiscardPile
+            }
+        );
+
+        let end = player.end_turn(EndAction::Swap { row: 2, column: 2 });
+        assert_eq!(
+            end,
+            PlayerTurnEnd {
+                player: &player,
+                action: EndAction::Swap { row: 2, column: 2 }
+            }
+        );
     }
 }

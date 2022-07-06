@@ -1,7 +1,7 @@
 use rand::Rng;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-struct Card {
+pub struct Card {
     value: CardValue,
     visible: bool,
 }
