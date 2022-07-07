@@ -4,12 +4,12 @@ mod card;
 
 use card::Card;
 
-pub struct StratoGame {
+pub struct StratoGame<'a> {
     pub state: GameState,
-    pub context: GameContext,
+    pub context: GameContext<'a>,
 }
 
-impl StratoGame {
+impl<'a> StratoGame<'a> {
     pub fn new() -> Self {
         Self {
             state: GameState::default(),
@@ -17,13 +17,13 @@ impl StratoGame {
         }
     }
 
-    pub fn add_player(&mut self, player: Player) {
+    pub fn add_player(&mut self, player: &'a Player) {
         if self.state == GameState::WaitingForPlayers {
-            self.context.players.push(player);
+            self.context.players.push(&player);
         }
     }
 
-    pub fn list_players(&self) -> Vec<Player> {
+    pub fn list_players(&self) -> Vec<&Player> {
         self.context.players.clone()
     }
 
@@ -49,8 +49,8 @@ pub enum GameState {
 }
 
 #[derive(Debug, Default)]
-pub struct GameContext {
-    pub players: Vec<Player>,
+pub struct GameContext<'a> {
+    pub players: Vec<&'a Player>,
     pub deck: Deck,
 }
 
@@ -131,7 +131,7 @@ mod tests {
     fn players_can_be_added() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
-        game.add_player(player_1);
+        game.add_player(&player_1);
         assert_eq!(game.state, GameState::WaitingForPlayers);
     }
 
@@ -139,7 +139,7 @@ mod tests {
     fn a_game_can_be_started() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
-        game.add_player(player_1);
+        game.add_player(&player_1);
         game.start();
         assert_eq!(game.state, GameState::Active);
         assert_eq!(game.context.deck.size(), 150);
@@ -156,7 +156,7 @@ mod tests {
     fn starting_multiple_times_is_inconsequential() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
-        game.add_player(player_1);
+        game.add_player(&player_1);
         game.start();
         let deck_snapshot = game.context.deck.clone();
         game.start();
@@ -171,25 +171,25 @@ mod tests {
     fn can_list_players() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
-        game.add_player(player_1);
+        game.add_player(&player_1);
         let player_2 = Player::new("Lexi");
-        game.add_player(player_2);
-        assert_eq!(game.list_players(), vec![player_1, player_2]);
+        game.add_player(&player_2);
+        assert_eq!(game.list_players(), vec![&player_1, &player_2]);
     }
 
     #[test]
     fn cant_change_players_after_game_starts() {
         let mut game = StratoGame::new();
         let player_1 = Player::new("Parker");
-        game.add_player(player_1);
+        game.add_player(&player_1);
         let player_2 = Player::new("Lexi");
-        game.add_player(player_2);
+        game.add_player(&player_2);
         game.start();
         assert_eq!(game.state, GameState::Active);
 
         let player_3 = Player::new("Trevor");
-        game.add_player(player_3);
-        assert_eq!(game.list_players(), vec![player_1, player_2]);
+        game.add_player(&player_3);
+        assert_eq!(game.list_players(), vec![&player_1, &player_2]);
     }
 
     #[test]
