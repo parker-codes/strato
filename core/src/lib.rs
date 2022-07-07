@@ -128,28 +128,27 @@ impl Player {
     }
 
     pub fn end_turn<'a>(&mut self, game: &'a StratoGame, action: EndAction) -> Result<(), String> {
-        let card_from_hand = self.holding.take();
+        let card_from_hand = self
+            .holding
+            .take()
+            .ok_or("Must start turn before you can end it.")?;
 
-        if let Some(card_from_hand) = card_from_hand {
-            match action {
-                EndAction::Swap { row, column } => {
-                    // TODO: validate that row and column fit within bounds
-                    // let selected_card = self.spread[row][column];
+        match action {
+            EndAction::Swap { row, column } => {
+                // TODO: validate that row and column fit within bounds
+                // let selected_card = self.spread[row][column];
 
-                    // self.spread[row][column] = card_from_hand;
+                // self.spread[row][column] = card_from_hand;
 
-                    // game.put_in_discard_pile(selected_card);
-                }
-                EndAction::Flip { row, column } => {
-                    game.put_in_discard_pile(card_from_hand);
-
-                    // TODO: validate that row and column fit within bounds
-                    // let mut selected_card = self.spread[row][column];
-                    // selected_card.flip();
-                }
+                // game.put_in_discard_pile(selected_card);
             }
-        } else {
-            return Err("Must start turn before you can end it.".into());
+            EndAction::Flip { row, column } => {
+                game.put_in_discard_pile(card_from_hand);
+
+                // TODO: validate that row and column fit within bounds
+                // let mut selected_card = self.spread[row][column];
+                // selected_card.flip();
+            }
         }
 
         Ok(())
