@@ -7,11 +7,16 @@ pub struct Card {
 }
 
 impl Card {
-    fn new(value: i32) -> Self {
+    // TODO: make private so people can't fabricate cards
+    pub fn new(value: i32) -> Self {
         Self {
             value: CardValue::from(value),
             visible: false,
         }
+    }
+
+    pub fn flip(&mut self) {
+        self.visible = true;
     }
 }
 
