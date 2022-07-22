@@ -306,7 +306,8 @@ mod tests {
 
         let player_3 = Player::new("t", "Trevor");
         game.add_player(player_3.clone());
-        assert_eq!(game.list_players(), vec![player_1, player_2]);
+        assert_eq!(game.list_players().len(), 2);
+        assert!(game.get_player(player_3.id).is_none());
     }
 
     #[test]
