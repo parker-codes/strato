@@ -51,12 +51,13 @@ impl StratoGame {
 
     fn deal_cards_to_players(&mut self) {
         if self.state == GameState::Startup {
+            let mut self_2 = self.clone();
+
             for player in self.context.players.iter_mut() {
                 for row in 0..3 {
                     for column in 0..4 {
-                        // player.spread[row][column] =
-                        //     self.draw_from_deck().expect("No cards left in deck.");
-                        player.spread[row][column] = Some(Card::new(2));
+                        let card = self_2.draw_from_deck().expect("No cards left in deck.");
+                        player.spread[row][column] = Some(card);
                     }
                 }
             }
