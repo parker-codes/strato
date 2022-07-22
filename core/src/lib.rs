@@ -1,9 +1,8 @@
-use card::Deck;
+use card::{Card, Deck};
 
 mod card;
 
-use card::Card;
-
+#[derive(Debug, Clone)]
 pub struct StratoGame {
     pub state: GameState,
     pub context: GameContext,
@@ -27,51 +26,80 @@ impl StratoGame {
         self.context.players.clone()
     }
 
+    pub fn get_player<S: Into<String> + Clone>(&self, player_id: S) -> Option<&Player> {
+        self.context
+            .players
+            .iter()
+            .find(|p| p.id == player_id.clone().into())
+    }
+
     pub fn start(&mut self) {
         if self.state == GameState::WaitingForPlayers && self.context.players.len() > 0 {
+            self.state = GameState::Startup;
+
             let mut deck = Deck::new();
             deck.shuffle();
             self.context.deck = deck;
 
             // TODO: shuffle player order
 
+            self.deal_cards_to_players();
+
             self.state = GameState::Active;
         }
     }
 
-    fn draw_from_deck(&self, player: Player) -> Option<Card> {
-        // TODO: implement
-        Some(Card::new(-1))
+    fn deal_cards_to_players(&mut self) {
+        if self.state == GameState::Startup {
+            for player in self.context.players.iter_mut() {
+                for row in 0..3 {
+                    for column in 0..4 {
+                        // player.spread[row][column] =
+                        //     self.draw_from_deck().expect("No cards left in deck.");
+                        player.spread[row][column] = Some(Card::new(2));
+                    }
+                }
+            }
+        }
     }
 
-    fn take_from_discard_pile(&self, player: Player) -> Option<Card> {
+    fn draw_from_deck(&mut self) -> Option<Card> {
+        self.context.deck.draw()
+    }
+
+    fn take_from_discard_pile(&self) -> Option<Card> {
         // TODO: implement
+        // self.context.discard_pile.take()
         Some(Card::new(2))
     }
 
     fn put_in_discard_pile(&self, card: Card) {
         // TODO: implement
+        // self.context.discard_pile.put(card)
     }
 }
 
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub enum GameState {
     #[default]
     WaitingForPlayers,
+    Startup,
     Active,
     Ended,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct GameContext {
     pub players: Vec<Player>,
     pub deck: Deck,
 }
 
-type PlayerSpread = Vec<Vec<Card>>;
+type PlayerSpread = [[Option<Card>; 4]; 3];
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Player {
+    /// A specified identifier.
+    id: &'static str,
     /// The player's chosen name or alias.
     name: &'static str,
     /// The card the user has in-hand after drawing from the deck or taking from the discard pile.
@@ -81,11 +109,16 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(name: &'static str) -> Self {
+    pub fn new(id: &'static str, name: &'static str) -> Self {
         Self {
+            id,
             name,
             holding: None,
-            spread: vec![vec![]],
+            spread: [
+                [None, None, None, None],
+                [None, None, None, None],
+                [None, None, None, None],
+            ],
         }
     }
 
@@ -95,17 +128,17 @@ impl Player {
 
     pub fn start_turn<'a>(
         &mut self,
-        game: &'a StratoGame,
+        mut game: StratoGame,
         action: StartAction,
     ) -> Result<(), String> {
         match action {
             StartAction::DrawFromDeck => {
-                if let Some(card) = game.draw_from_deck(self.clone()) {
+                if let Some(card) = game.draw_from_deck() {
                     self.hold(card)?;
                 }
             }
             StartAction::TakeFromDiscardPile => {
-                if let Some(card) = game.take_from_discard_pile(self.clone()) {
+                if let Some(card) = game.take_from_discard_pile() {
                     self.hold(card)?;
                 }
             }
@@ -127,7 +160,7 @@ impl Player {
         Ok(())
     }
 
-    pub fn end_turn<'a>(&mut self, game: &'a StratoGame, action: EndAction) -> Result<(), String> {
+    pub fn end_turn<'a>(&mut self, mut game: StratoGame, action: EndAction) -> Result<(), String> {
         let card_from_hand = self
             .holding
             .take()
@@ -196,7 +229,7 @@ mod tests {
     #[test]
     fn players_can_be_added() {
         let mut game = StratoGame::new();
-        let player_1 = Player::new("Parker");
+        let player_1 = Player::new("p", "Parker");
         game.add_player(player_1.clone());
         assert_eq!(game.state, GameState::WaitingForPlayers);
     }
@@ -204,7 +237,7 @@ mod tests {
     #[test]
     fn a_game_can_be_started() {
         let mut game = StratoGame::new();
-        let player_1 = Player::new("Parker");
+        let player_1 = Player::new("p", "Parker");
         game.add_player(player_1.clone());
         game.start();
         assert_eq!(game.state, GameState::Active);
@@ -219,9 +252,27 @@ mod tests {
     }
 
     #[test]
+    fn a_started_game_deals_cards_to_players() {
+        let mut game = StratoGame::new();
+        let player_1 = Player::new("j", "Joe");
+        game.add_player(player_1.clone());
+        game.start();
+        let joe = game.get_player(player_1.id).unwrap();
+        assert_eq!(
+            joe.view_spread()
+                .into_iter()
+                .flatten()
+                .filter(|x| x.is_some() && !x.unwrap().is_visible())
+                .collect::<Vec<_>>()
+                .len(),
+            12
+        );
+    }
+
+    #[test]
     fn starting_multiple_times_is_inconsequential() {
         let mut game = StratoGame::new();
-        let player_1 = Player::new("Parker");
+        let player_1 = Player::new("p", "Parker");
         game.add_player(player_1.clone());
         game.start();
         let deck_snapshot = game.context.deck.clone();
@@ -236,9 +287,9 @@ mod tests {
     #[test]
     fn can_list_players() {
         let mut game = StratoGame::new();
-        let player_1 = Player::new("Parker");
+        let player_1 = Player::new("p", "Parker");
         game.add_player(player_1.clone());
-        let player_2 = Player::new("Lexi");
+        let player_2 = Player::new("l", "Lexi");
         game.add_player(player_2.clone());
         assert_eq!(game.list_players(), vec![player_1, player_2]);
     }
@@ -246,14 +297,14 @@ mod tests {
     #[test]
     fn cant_change_players_after_game_starts() {
         let mut game = StratoGame::new();
-        let player_1 = Player::new("Parker");
+        let player_1 = Player::new("p", "Parker");
         game.add_player(player_1.clone());
-        let player_2 = Player::new("Lexi");
+        let player_2 = Player::new("l", "Lexi");
         game.add_player(player_2.clone());
         game.start();
         assert_eq!(game.state, GameState::Active);
 
-        let player_3 = Player::new("Trevor");
+        let player_3 = Player::new("t", "Trevor");
         game.add_player(player_3.clone());
         assert_eq!(game.list_players(), vec![player_1, player_2]);
     }
@@ -261,16 +312,16 @@ mod tests {
     #[test]
     fn a_player_can_draw_and_flip() {
         let mut game = StratoGame::new();
-        let mut player = Player::new("Trevor");
+        let mut player = Player::new("t", "Trevor");
         game.add_player(player.clone());
         game.start();
 
         player
-            .start_turn(&game, StartAction::DrawFromDeck)
+            .start_turn(game.clone(), StartAction::DrawFromDeck)
             .expect("Couldn't start turn");
         assert!(&player.holding.is_some());
         player
-            .end_turn(&game, EndAction::Flip { row: 1, column: 2 })
+            .end_turn(game.clone(), EndAction::Flip { row: 1, column: 2 })
             .expect("Couldn't end turn");
         assert!(&player.holding.is_none());
     }
@@ -278,16 +329,16 @@ mod tests {
     #[test]
     fn a_player_can_take_and_swap() {
         let mut game = StratoGame::new();
-        let mut player = Player::new("Jon");
+        let mut player = Player::new("j", "Jon");
         game.add_player(player.clone());
         game.start();
 
         player
-            .start_turn(&game, StartAction::TakeFromDiscardPile)
+            .start_turn(game.clone(), StartAction::TakeFromDiscardPile)
             .expect("Couldn't start turn");
         assert!(&player.holding.is_some());
         player
-            .end_turn(&game, EndAction::Swap { row: 2, column: 2 })
+            .end_turn(game.clone(), EndAction::Swap { row: 2, column: 2 })
             .expect("Couldn't end turn");
         assert!(&player.holding.is_none());
     }
@@ -299,7 +350,7 @@ mod tests {
     //     game.add_player(player.clone());
     //     game.start();
 
-    //     player.start_turn(&game, StartAction::DrawFromDeck);
+    //     player.start_turn(game.clone(), StartAction::DrawFromDeck);
     // }
 
     fn card_is_held_after_starting_turn() {}

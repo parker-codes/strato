@@ -18,6 +18,10 @@ impl Card {
     pub fn flip(&mut self) {
         self.visible = true;
     }
+
+    pub fn is_visible(&self) -> bool {
+        self.visible
+    }
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -162,7 +166,7 @@ impl Deck {
     }
 
     /// Draw a card from the top of the deck.
-    fn draw(&mut self) -> Option<Card> {
+    pub fn draw(&mut self) -> Option<Card> {
         self.0.pop()
     }
 }
