@@ -223,6 +223,7 @@ mod tests {
     fn a_game_can_be_initialized() {
         let game = StratoGame::new();
         assert_eq!(game.state, GameState::WaitingForPlayers);
+        assert_eq!(game.context.deck.size(), Deck::EMPTY_SIZE);
     }
 
     #[test]
@@ -240,7 +241,6 @@ mod tests {
         game.add_player(player_1.clone());
         game.start();
         assert_eq!(game.state, GameState::Active);
-        assert_eq!(game.context.deck.size(), Deck::FULL_SIZE);
     }
 
     #[test]
