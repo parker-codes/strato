@@ -96,6 +96,8 @@ impl From<CardValue> for i32 {
 pub struct Deck(Vec<Card>);
 
 impl Deck {
+    pub const FULL_SIZE: usize = 150;
+
     /// Create a new deck which consists of ten full sets of -2 through 12.
     pub fn new() -> Self {
         let cards = (0..10)

@@ -51,12 +51,10 @@ impl StratoGame {
 
     fn deal_cards_to_players(&mut self) {
         if self.state == GameState::Startup {
-            let mut self_2 = self.clone();
-
             for player in self.context.players.iter_mut() {
                 for row in 0..3 {
                     for column in 0..4 {
-                        let card = self_2.draw_from_deck().expect("No cards left in deck.");
+                        let card = self.context.deck.draw().expect("No cards left in deck.");
                         player.spread[row][column] = Some(card);
                     }
                 }
@@ -242,7 +240,7 @@ mod tests {
         game.add_player(player_1.clone());
         game.start();
         assert_eq!(game.state, GameState::Active);
-        assert_eq!(game.context.deck.size(), 150);
+        assert_eq!(game.context.deck.size(), Deck::FULL_SIZE);
     }
 
     #[test]
@@ -268,6 +266,7 @@ mod tests {
                 .len(),
             12
         );
+        assert_eq!(game.context.deck.size(), Deck::FULL_SIZE - 12);
     }
 
     #[test]
