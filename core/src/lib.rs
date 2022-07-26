@@ -347,34 +347,21 @@ mod tests {
         assert!(turn.is_err());
     }
 
-    // #[test]
-    // fn a_player_can_take_and_swap() {
-    //     let mut game = StratoGame::new();
-    //     let mut player = Player::new("j", "Jon");
-    //     game.add_player(player.clone());
-    //     game.start();
+    #[test]
+    fn a_player_can_take_and_swap() {
+        let mut game = StratoGame::new();
+        let player = Player::new("j", "Jon");
+        game.add_player(player.clone());
+        game.start();
 
-    //     game
-    //         .start_player_turn(&mut game, StartAction::TakeFromDiscardPile)
-    //         .expect("Couldn't start turn");
-    //     assert!(&player.holding.is_some());
-    //     game
-    //         .end_player_turn(&mut game, EndAction::Swap { row: 2, column: 2 })
-    //         .expect("Couldn't end turn");
-    //     assert!(&player.holding.is_none());
-    // }
+        // have to add a card to the discard pile first!
+        game.context.discard_pile.put(Card::new(-2));
 
-    // #[test]
-    // fn a_game_turn_can_be_played_by_player() {
-    //     let mut game = StratoGame::new();
-    //     let mut player = Player::new("Parker");
-    //     game.add_player(player.clone());
-    //     game.start();
-
-    //     game.start_player_turn(game.clone(), StartAction::DrawFromDeck);
-    // }
-
-    fn card_is_held_after_starting_turn() {}
-
-    fn card_is_not_held_after_ending_turn() {}
+        game.start_player_turn(player.id, StartAction::TakeFromDiscardPile)
+            .expect("Couldn't start turn");
+        assert!(game.get_player(player.id).unwrap().holding.is_some());
+        game.end_player_turn(player.id, EndAction::Swap { row: 2, column: 2 })
+            .expect("Couldn't end turn");
+        assert!(game.get_player(player.id).unwrap().holding.is_none());
+    }
 }
