@@ -62,10 +62,6 @@ impl StratoGame {
         }
     }
 
-    fn draw_from_deck(&mut self) -> Option<Card> {
-        self.context.deck.draw()
-    }
-
     fn take_from_discard_pile(&self) -> Option<Card> {
         // TODO: implement
         // self.context.discard_pile.take()
@@ -132,7 +128,7 @@ impl Player {
     ) -> Result<(), String> {
         match action {
             StartAction::DrawFromDeck => {
-                if let Some(card) = game.draw_from_deck() {
+                if let Some(card) = game.context.deck.draw() {
                     self.hold(card)?;
                 }
             }
