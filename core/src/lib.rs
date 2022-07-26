@@ -76,14 +76,20 @@ impl StratoGame {
 
         match action {
             StartAction::DrawFromDeck => {
-                if let Some(card) = self.context.deck.draw() {
-                    player.hold(card)?;
-                }
+                let card = self
+                    .context
+                    .deck
+                    .draw()
+                    .ok_or("No more cards in the deck.")?;
+                player.hold(card)?;
             }
             StartAction::TakeFromDiscardPile => {
-                if let Some(card) = self.context.discard_pile.take() {
-                    player.hold(card)?;
-                }
+                let card = self
+                    .context
+                    .discard_pile
+                    .take()
+                    .ok_or("No cards in the discard pile.")?;
+                player.hold(card)?;
             }
         }
 
@@ -327,6 +333,18 @@ mod tests {
         game.end_player_turn(player.id, EndAction::Flip { row: 1, column: 2 })
             .expect("Couldn't end turn");
         assert!(game.get_player(player.id).unwrap().holding.is_none());
+    }
+
+    #[test]
+    fn the_first_turn_cant_take_from_discard_pile() {
+        let mut game = StratoGame::new();
+        let player = Player::new("k", "Kristen");
+        game.add_player(player.clone());
+        game.start();
+
+        let turn = game.start_player_turn(player.id, StartAction::TakeFromDiscardPile);
+        // TODO: replace with thiserror types
+        assert!(turn.is_err());
     }
 
     // #[test]
