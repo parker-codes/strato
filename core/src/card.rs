@@ -174,7 +174,29 @@ impl Deck {
     }
 }
 
-struct DiscardPile(Vec<Card>);
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct DiscardPile(Vec<Card>);
+
+impl DiscardPile {
+    /// Create a new, empty pile.
+    pub fn new() -> Self {
+        Self(vec![])
+    }
+
+    pub fn size(&self) -> usize {
+        self.0.len()
+    }
+
+    /// Take a card from the top of the discard pile.
+    pub fn take(&mut self) -> Option<Card> {
+        self.0.pop()
+    }
+
+    /// Put a card on the top of the discard pile.
+    pub fn put(&mut self, card: Card) {
+        self.0.push(card)
+    }
+}
 
 #[cfg(test)]
 mod tests {
