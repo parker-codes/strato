@@ -1,7 +1,7 @@
 use core::{
     self,
     card::{Card, Deck},
-    game::{GameState, StratoGame},
+    game::{GameState, PlayerTurnError, StratoGame},
     player::{EndAction, StartAction},
 };
 
@@ -23,14 +23,14 @@ fn players_can_be_added() {
 fn a_game_can_be_started() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
-    game.start();
+    game.start().unwrap();
     assert_eq!(game.state, GameState::Active);
 }
 
 #[test]
 fn cant_start_without_players() {
     let mut game = StratoGame::new();
-    game.start();
+    game.start().unwrap();
     assert_eq!(game.state, GameState::WaitingForPlayers);
 }
 
@@ -38,7 +38,7 @@ fn cant_start_without_players() {
 fn a_started_game_deals_cards_to_players() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Joe").unwrap();
-    game.start();
+    game.start().unwrap();
     let player = game.get_player(player_id).unwrap();
     assert_eq!(
         player
@@ -58,12 +58,10 @@ fn a_started_game_deals_cards_to_players() {
 fn starting_multiple_times_is_inconsequential() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
-    game.start();
+    game.start().unwrap();
     let deck_snapshot = game.context.deck.clone();
-    game.start();
-    game.start();
-    game.start();
-    game.start();
+    assert!(game.start().is_err());
+    assert!(game.start().is_err());
     assert_eq!(game.state, GameState::Active);
     assert_eq!(deck_snapshot, game.context.deck);
 }
@@ -83,7 +81,7 @@ fn cant_change_players_after_game_starts() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
     game.add_player("Lexi").unwrap();
-    game.start();
+    game.start().unwrap();
     assert_eq!(game.state, GameState::Active);
 
     let player_3_id = game.add_player("Trevor");
@@ -95,7 +93,7 @@ fn cant_change_players_after_game_starts() {
 fn a_player_can_draw_and_flip() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Trevor").unwrap();
-    game.start();
+    game.start().unwrap();
 
     game.start_player_turn(&player_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
@@ -110,18 +108,17 @@ fn a_player_can_draw_and_flip() {
 fn the_first_turn_cant_take_from_discard_pile() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Kristen").unwrap();
-    game.start();
+    game.start().unwrap();
 
     let turn = game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile);
-    // TODO: replace with thiserror types
-    assert!(turn.is_err());
+    assert_eq!(turn.unwrap_err(), PlayerTurnError::DiscardPileEmpty);
 }
 
 #[test]
 fn a_player_can_take_and_swap() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Jon").unwrap();
-    game.start();
+    game.start().unwrap();
 
     // have to add a card to the discard pile first!
     game.context.discard_pile.put(Card::new(-2));
@@ -139,7 +136,7 @@ fn a_player_can_take_and_swap() {
 fn cant_flip_same_card_twice() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Julie").unwrap();
-    game.start();
+    game.start().unwrap();
 
     const ROW: usize = 0;
     const COLUMN: usize = 1;
@@ -174,7 +171,7 @@ fn multiple_players_session_1() {
     let mut game = StratoGame::new();
     let cassie_id = game.add_player("Cassie").unwrap();
     let james_id = game.add_player("James").unwrap();
-    game.start();
+    game.start().unwrap();
 
     // Cassie first
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)

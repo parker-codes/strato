@@ -1,4 +1,6 @@
+use anyhow::Result;
 use rand::Rng;
+use thiserror::Error;
 
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Card {
@@ -198,6 +200,20 @@ impl DiscardPile {
     }
 }
 
+#[derive(Error, Debug, PartialEq)]
+pub enum SpreadActionError {
+    #[error("Can't {0} card from a row that doesn't exist.")]
+    RowDoesntExist(&'static str),
+    #[error("Can't {0} card from a column that doesn't exist.")]
+    ColumnDoesntExist(&'static str),
+    #[error("No card found in that spot.")]
+    NoCardFound,
+    #[error("There is already a card in that spot.")]
+    SpotTaken,
+    #[error("That card has already been flipped.")]
+    CardAlreadyFlipped,
+}
+
 type FourColumns = [Option<Card>; 4];
 type ThreeByFourGrid = [FourColumns; 3];
 
@@ -219,27 +235,32 @@ impl PlayerSpread {
     }
 
     /// Take a card from a specified row and column.
-    pub fn take_from(&mut self, row: usize, column: usize) -> Result<Card, String> {
+    pub fn take_from(&mut self, row: usize, column: usize) -> Result<Card, SpreadActionError> {
         self.0
             .get_mut(row)
-            .ok_or("Can't take card from row that doesn't exist.")?
+            .ok_or(SpreadActionError::RowDoesntExist("take"))?
             .get_mut(column)
-            .ok_or("Can't take card from column that doesn't exist.")?
+            .ok_or(SpreadActionError::ColumnDoesntExist("take"))?
             .take()
-            .ok_or("No card found".into())
+            .ok_or(SpreadActionError::NoCardFound)
     }
 
     /// Put a card at a specified row and column.
-    pub fn place_at(&mut self, card: Card, row: usize, column: usize) -> Result<(), String> {
+    pub fn place_at(
+        &mut self,
+        card: Card,
+        row: usize,
+        column: usize,
+    ) -> Result<(), SpreadActionError> {
         let place = self
             .0
             .get_mut(row)
-            .ok_or("Can't place card in row that doesn't exist.")?
+            .ok_or(SpreadActionError::RowDoesntExist("place"))?
             .get_mut(column)
-            .ok_or("Can't place card in column that doesn't exist.")?;
+            .ok_or(SpreadActionError::ColumnDoesntExist("place"))?;
 
         if place.is_some() {
-            return Err("There is already a card in the specified location.".into());
+            return Err(SpreadActionError::SpotTaken);
         } else {
             place.replace(card);
             Ok(())
@@ -247,19 +268,19 @@ impl PlayerSpread {
     }
 
     /// Flip a card at a specified row and column.
-    pub fn flip_at(&mut self, row: usize, column: usize) -> Result<(), String> {
+    pub fn flip_at(&mut self, row: usize, column: usize) -> Result<(), SpreadActionError> {
         // Validates that row and column fit within bounds
         let selected_card = self
             .0
             .get_mut(row)
-            .ok_or("Can't flip card from row that doesn't exist.")?
+            .ok_or(SpreadActionError::RowDoesntExist("flip"))?
             .get_mut(column)
-            .ok_or("Can't flip card from column that doesn't exist.")?
+            .ok_or(SpreadActionError::ColumnDoesntExist("flip"))?
             .as_mut()
-            .ok_or("Can't flip card that doesn't exist.")?;
+            .ok_or(SpreadActionError::NoCardFound)?;
 
         if selected_card.is_flipped() {
-            return Err("Card already flipped.".into());
+            return Err(SpreadActionError::CardAlreadyFlipped);
         } else {
             selected_card.flip();
             Ok(())
