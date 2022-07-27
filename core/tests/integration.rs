@@ -179,36 +179,28 @@ fn multiple_players_session_1() {
     // Cassie first
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&cassie_id).unwrap().holding().is_some());
     game.end_player_turn(&cassie_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&cassie_id).unwrap().holding().is_none());
     assert_eq!(game.context.discard_pile.size(), 1);
 
     // James next
     game.start_player_turn(&james_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&james_id).unwrap().holding().is_some());
     game.end_player_turn(&james_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&james_id).unwrap().holding().is_none());
-    assert_eq!(game.context.discard_pile.size(), 1); // hasn't changed
+    assert_eq!(game.context.discard_pile.size(), 1); // hasn't changed because this was taken from discard pile
 
     // Then Cassie again
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&cassie_id).unwrap().holding().is_some());
     game.end_player_turn(&cassie_id, EndAction::Swap { row: 2, column: 3 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&cassie_id).unwrap().holding().is_none());
     assert_eq!(game.context.discard_pile.size(), 2);
 
     // Then James again
     game.start_player_turn(&james_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&james_id).unwrap().holding().is_some());
     game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&james_id).unwrap().holding().is_none());
     assert_eq!(game.context.discard_pile.size(), 3);
 }
