@@ -282,7 +282,7 @@ mod tests {
                 .view_spread()
                 .into_iter()
                 .flatten()
-                .filter(|x| x.is_some() && !x.unwrap().is_visible())
+                .filter(|x| x.is_some() && !x.unwrap().is_flipped())
                 .collect::<Vec<_>>()
                 .len(),
             12

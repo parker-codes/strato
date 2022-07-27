@@ -3,7 +3,7 @@ use rand::Rng;
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct Card {
     value: CardValue,
-    visible: bool,
+    flipped: bool,
 }
 
 impl Card {
@@ -11,16 +11,16 @@ impl Card {
     pub fn new(value: i32) -> Self {
         Self {
             value: CardValue::from(value),
-            visible: false,
+            flipped: false,
         }
     }
 
     pub fn flip(&mut self) {
-        self.visible = true;
+        self.flipped = true;
     }
 
-    pub fn is_visible(&self) -> bool {
-        self.visible
+    pub fn is_flipped(&self) -> bool {
+        self.flipped
     }
 }
 
@@ -225,7 +225,7 @@ mod tests {
     fn card_has_value_and_starts_hidden() {
         let card = Card::new(5);
         assert_eq!(card.value, CardValue::Five);
-        assert!(!card.visible);
+        assert!(!card.flipped);
     }
 
     #[test]
