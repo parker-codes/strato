@@ -198,6 +198,86 @@ impl DiscardPile {
     }
 }
 
+type FourColumns = [Option<Card>; 4];
+type ThreeByFourGrid = [FourColumns; 3];
+
+#[derive(Debug, Default, Clone, PartialEq)]
+pub struct PlayerSpread(ThreeByFourGrid);
+
+impl PlayerSpread {
+    /// Create a new deck which consists of ten full sets of -2 through 12.
+    pub fn new() -> Self {
+        Self([
+            [None, None, None, None],
+            [None, None, None, None],
+            [None, None, None, None],
+        ])
+    }
+
+    pub fn view(&self) -> ThreeByFourGrid {
+        self.0.clone()
+    }
+
+    /// Take a card from a specified row and column.
+    pub fn take_from(&mut self, row: usize, column: usize) -> Result<Card, String> {
+        self.0
+            .get_mut(row)
+            .ok_or("Can't take card from row that doesn't exist.")?
+            .get_mut(column)
+            .ok_or("Can't take card from column that doesn't exist.")?
+            .take()
+            .ok_or("No card found".into())
+    }
+
+    /// Put a card at a specified row and column.
+    pub fn place_at(&mut self, card: Card, row: usize, column: usize) -> Result<(), String> {
+        let place = self
+            .0
+            .get_mut(row)
+            .ok_or("Can't place card in row that doesn't exist.")?
+            .get_mut(column)
+            .ok_or("Can't place card in column that doesn't exist.")?;
+
+        if place.is_some() {
+            return Err("There is already a card in the specified location.".into());
+        } else {
+            place.replace(card);
+            Ok(())
+        }
+    }
+
+    /// Flip a card at a specified row and column.
+    pub fn flip_at(&mut self, row: usize, column: usize) -> Result<(), String> {
+        // Validates that row and column fit within bounds
+        let selected_card = self
+            .0
+            .get_mut(row)
+            .ok_or("Can't flip card from row that doesn't exist.")?
+            .get_mut(column)
+            .ok_or("Can't flip card from column that doesn't exist.")?
+            .as_mut()
+            .ok_or("Can't flip card that doesn't exist.")?;
+
+        if selected_card.is_flipped() {
+            return Err("Card already flipped.".into());
+        } else {
+            selected_card.flip();
+            Ok(())
+        }
+    }
+
+    /// Determine number of active columns.
+    pub fn active_columns(&self) -> usize {
+        self.0
+            .get(0)
+            .unwrap()
+            .iter()
+            .filter(|c| c.is_some())
+            .collect::<Vec<_>>()
+            .len()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

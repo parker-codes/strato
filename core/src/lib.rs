@@ -1,4 +1,4 @@
-use card::{Card, Deck, DiscardPile};
+use card::{Card, Deck, DiscardPile, PlayerSpread};
 use rand::distributions::Alphanumeric;
 use rand::Rng;
 
@@ -68,7 +68,10 @@ impl StratoGame {
                 for row in 0..3 {
                     for column in 0..4 {
                         let card = self.context.deck.draw().expect("No cards left in deck.");
-                        player.spread[row][column] = Some(card);
+                        player
+                            .spread
+                            .place_at(card, row, column)
+                            .expect("Can't place card");
                     }
                 }
             }
@@ -128,29 +131,12 @@ impl StratoGame {
 
         match action {
             EndAction::Swap { row, column } => {
-                // TODO: validate that row and column fit within bounds
-                let selected_card =
-                    player.spread[row][column].ok_or("Can't swap with card that doesn't exist.")?;
-                player.spread[row][column] = Some(card_from_hand);
+                let selected_card = player.spread.take_from(row, column)?;
+                player.spread.place_at(card_from_hand, row, column)?;
                 self.context.discard_pile.put(selected_card);
             }
             EndAction::Flip { row, column } => {
-                // Validates that row and column fit within bounds
-                let selected_card = player
-                    .spread
-                    .get_mut(row)
-                    .ok_or("Can't flip card from row that doesn't exist.")?
-                    .get_mut(column)
-                    .ok_or("Can't flip card from column that doesn't exist.")?
-                    .as_mut()
-                    .ok_or("Can't flip card that doesn't exist.")?;
-
-                if selected_card.is_flipped() {
-                    return Err("Card already flipped.".into());
-                } else {
-                    selected_card.flip();
-                }
-
+                player.spread.flip_at(row, column)?;
                 self.context.discard_pile.put(card_from_hand);
             }
         }
@@ -175,8 +161,6 @@ pub struct GameContext {
     pub discard_pile: DiscardPile,
 }
 
-type PlayerSpread = [[Option<Card>; 4]; 3];
-
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Player {
     /// A generated identifier.
@@ -195,16 +179,8 @@ impl Player {
             id,
             name,
             holding: None,
-            spread: [
-                [None, None, None, None],
-                [None, None, None, None],
-                [None, None, None, None],
-            ],
+            spread: PlayerSpread::new(),
         }
-    }
-
-    pub fn view_spread(&self) -> PlayerSpread {
-        self.spread.clone()
     }
 
     /// The Game gives the player the card they drew or took during the start of their
@@ -290,7 +266,8 @@ mod tests {
         let player = game.get_player(player_id).unwrap();
         assert_eq!(
             player
-                .view_spread()
+                .spread
+                .view()
                 .into_iter()
                 .flatten()
                 .filter(|x| x.is_some() && !x.unwrap().is_flipped())
@@ -445,7 +422,7 @@ mod tests {
         game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
             .expect("Couldn't start turn");
         assert!(game.get_player(&cassie_id).unwrap().holding.is_some());
-        game.end_player_turn(&cassie_id, EndAction::Flip { row: 1, column: 2 })
+        game.end_player_turn(&cassie_id, EndAction::Swap { row: 2, column: 3 })
             .expect("Couldn't end turn");
         assert!(game.get_player(&cassie_id).unwrap().holding.is_none());
         assert_eq!(game.context.discard_pile.size(), 2);
@@ -454,7 +431,7 @@ mod tests {
         game.start_player_turn(&james_id, StartAction::DrawFromDeck)
             .expect("Couldn't start turn");
         assert!(game.get_player(&james_id).unwrap().holding.is_some());
-        game.end_player_turn(&james_id, EndAction::Flip { row: 1, column: 2 })
+        game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
             .expect("Couldn't end turn");
         assert!(game.get_player(&james_id).unwrap().holding.is_none());
         assert_eq!(game.context.discard_pile.size(), 3);
