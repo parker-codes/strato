@@ -311,9 +311,7 @@ mod tests {
         let player_2_id = game.add_player("Lexi").unwrap();
         let player_1 = game.get_player(player_1_id).unwrap();
         let player_2 = game.get_player(player_2_id).unwrap();
-        let players = game.list_players();
-        let players = players.iter().collect::<Vec<&Player>>();
-        assert_eq!(players, vec![player_1, player_2]);
+        assert!(game.list_players().iter().eq(vec![player_1, player_2]));
     }
 
     #[test]
