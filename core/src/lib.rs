@@ -339,6 +339,7 @@ mod tests {
         game.end_player_turn(&player_id, EndAction::Flip { row: 1, column: 2 })
             .expect("Couldn't end turn");
         assert!(game.get_player(&player_id).unwrap().holding.is_none());
+        assert_eq!(game.context.discard_pile.size(), 1);
     }
 
     #[test]
@@ -367,5 +368,6 @@ mod tests {
         game.end_player_turn(&player_id, EndAction::Swap { row: 2, column: 2 })
             .expect("Couldn't end turn");
         assert!(game.get_player(&player_id).unwrap().holding.is_none());
+        assert_eq!(game.context.discard_pile.size(), 1);
     }
 }
