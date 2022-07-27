@@ -135,12 +135,26 @@ impl StratoGame {
                 self.context.discard_pile.put(selected_card);
             }
             EndAction::Flip { row, column } => {
-                // TODO: validate that card is not already flipped
+                // let mut selected_card =
+                //     player.spread[row][column].ok_or("Can't flip card that doesn't exist.")?;
+                let mut selected_card = player
+                    .spread
+                    .get_mut(row)
+                    .ok_or("Can't flip card from row that doesn't exist.")?
+                    .get_mut(column)
+                    .ok_or("Can't flip card from column that doesn't exist.")?
+                    .ok_or("Can't flip card that doesn't exist.")?;
+                dbg!(&selected_card);
+
+                if selected_card.is_flipped() {
+                    return Err("Card already flipped.".into());
+                }
+
                 self.context.discard_pile.put(card_from_hand);
                 // TODO: validate that row and column fit within bounds
-                let mut selected_card =
-                    player.spread[row][column].ok_or("Can't flip card that doesn't exist.")?;
                 selected_card.flip();
+                // TODO: card flip is not being persisted
+                dbg!(&selected_card);
             }
         }
 
@@ -369,6 +383,42 @@ mod tests {
             .expect("Couldn't end turn");
         assert!(game.get_player(&player_id).unwrap().holding.is_none());
         assert_eq!(game.context.discard_pile.size(), 1);
+    }
+
+    #[test]
+    fn cant_flip_same_card_twice() {
+        let mut game = StratoGame::new();
+        let player_id = game.add_player("Julie").unwrap();
+        game.start();
+
+        const ROW: usize = 0;
+        const COLUMN: usize = 1;
+
+        // First turn
+        game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+            .expect("Couldn't start turn");
+        game.end_player_turn(
+            &player_id,
+            EndAction::Flip {
+                row: ROW,
+                column: COLUMN,
+            },
+        )
+        .expect("Couldn't end turn");
+        dbg!(game.get_player(&player_id).unwrap().view_spread());
+
+        // Second turn
+        game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+            .expect("Couldn't start turn");
+        let turn = game.end_player_turn(
+            &player_id,
+            EndAction::Flip {
+                row: ROW,
+                column: COLUMN,
+            },
+        );
+        dbg!(game.get_player(&player_id).unwrap().view_spread());
+        assert!(turn.is_err());
     }
 
     #[test]
