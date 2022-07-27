@@ -135,26 +135,23 @@ impl StratoGame {
                 self.context.discard_pile.put(selected_card);
             }
             EndAction::Flip { row, column } => {
-                // let mut selected_card =
-                //     player.spread[row][column].ok_or("Can't flip card that doesn't exist.")?;
-                let mut selected_card = player
+                // Validates that row and column fit within bounds
+                let selected_card = player
                     .spread
                     .get_mut(row)
                     .ok_or("Can't flip card from row that doesn't exist.")?
                     .get_mut(column)
                     .ok_or("Can't flip card from column that doesn't exist.")?
+                    .as_mut()
                     .ok_or("Can't flip card that doesn't exist.")?;
-                dbg!(&selected_card);
 
                 if selected_card.is_flipped() {
                     return Err("Card already flipped.".into());
+                } else {
+                    selected_card.flip();
                 }
 
                 self.context.discard_pile.put(card_from_hand);
-                // TODO: validate that row and column fit within bounds
-                selected_card.flip();
-                // TODO: card flip is not being persisted
-                dbg!(&selected_card);
             }
         }
 
@@ -405,7 +402,6 @@ mod tests {
             },
         )
         .expect("Couldn't end turn");
-        dbg!(game.get_player(&player_id).unwrap().view_spread());
 
         // Second turn
         game.start_player_turn(&player_id, StartAction::DrawFromDeck)
@@ -417,7 +413,6 @@ mod tests {
                 column: COLUMN,
             },
         );
-        dbg!(game.get_player(&player_id).unwrap().view_spread());
         assert!(turn.is_err());
     }
 
