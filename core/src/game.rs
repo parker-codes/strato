@@ -82,12 +82,10 @@ impl StratoGame {
         } else if self.state == GameState::WaitingForPlayers && self.context.players.len() > 0 {
             self.state = GameState::Startup;
 
-            let mut deck = Deck::new();
-            deck.shuffle();
-            self.context.deck = deck;
-
+            self.context.deck.shuffle();
+            let top_card = self.context.deck.draw().unwrap();
+            self.context.discard_pile.put(top_card);
             // TODO: shuffle player order
-
             self.deal_cards_to_players()?;
 
             self.state = GameState::Active;

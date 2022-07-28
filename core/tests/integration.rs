@@ -1,7 +1,7 @@
 use core::{
     self,
-    card::{Card, Deck},
-    game::{GameState, PlayerTurnError, StratoGame},
+    card::Deck,
+    game::{GameState, StratoGame},
     player::{EndAction, StartAction},
 };
 
@@ -9,7 +9,7 @@ use core::{
 fn a_game_can_be_initialized() {
     let game = StratoGame::new();
     assert_eq!(game.state, GameState::WaitingForPlayers);
-    assert_eq!(game.context.deck.size(), Deck::EMPTY_SIZE);
+    assert_eq!(game.context.deck.size(), Deck::FULL_SIZE);
 }
 
 #[test]
@@ -51,7 +51,8 @@ fn a_started_game_deals_cards_to_players() {
             .len(),
         12
     );
-    assert_eq!(game.context.deck.size(), Deck::FULL_SIZE - 12);
+    let cards_used = 12 /* for player */ + 1 /* for discard init */;
+    assert_eq!(game.context.deck.size(), Deck::FULL_SIZE - cards_used);
 }
 
 #[test]
@@ -90,6 +91,15 @@ fn cant_change_players_after_game_starts() {
 }
 
 #[test]
+fn the_first_turn_can_take_from_discard_pile() {
+    let mut game = StratoGame::new();
+    let player_id = game.add_player("Kristen").unwrap();
+    game.start().unwrap();
+    let turn = game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile);
+    assert!(turn.is_ok());
+}
+
+#[test]
 fn a_player_can_draw_and_flip() {
     let mut game = StratoGame::new();
     let player_id = game.add_player("Trevor").unwrap();
@@ -101,17 +111,7 @@ fn a_player_can_draw_and_flip() {
     game.end_player_turn(&player_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end turn");
     assert!(game.get_player(&player_id).unwrap().holding().is_none());
-    assert_eq!(game.context.discard_pile.size(), 1);
-}
-
-#[test]
-fn the_first_turn_cant_take_from_discard_pile() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Kristen").unwrap();
-    game.start().unwrap();
-
-    let turn = game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile);
-    assert_eq!(turn.unwrap_err(), PlayerTurnError::DiscardPileEmpty);
+    assert_eq!(game.context.discard_pile.size(), 2); // discard init contains 1 already
 }
 
 #[test]
@@ -120,16 +120,13 @@ fn a_player_can_take_and_swap() {
     let player_id = game.add_player("Jon").unwrap();
     game.start().unwrap();
 
-    // have to add a card to the discard pile first!
-    game.context.discard_pile.put(Card::new(-2));
-
     game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start turn");
     assert!(game.get_player(&player_id).unwrap().holding().is_some());
     game.end_player_turn(&player_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end turn");
     assert!(game.get_player(&player_id).unwrap().holding().is_none());
-    assert_eq!(game.context.discard_pile.size(), 1);
+    assert_eq!(game.context.discard_pile.size(), 1); // discard init contains 1 already
 }
 
 #[test]
@@ -178,26 +175,26 @@ fn multiple_players_session_1() {
         .expect("Couldn't start turn");
     game.end_player_turn(&cassie_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end turn");
-    assert_eq!(game.context.discard_pile.size(), 1);
+    assert_eq!(game.context.discard_pile.size(), 2);
 
     // James next
     game.start_player_turn(&james_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start turn");
     game.end_player_turn(&james_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end turn");
-    assert_eq!(game.context.discard_pile.size(), 1); // hasn't changed because this was taken from discard pile
+    assert_eq!(game.context.discard_pile.size(), 2); // hasn't changed because this was taken from discard pile
 
     // Then Cassie again
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
     game.end_player_turn(&cassie_id, EndAction::Swap { row: 2, column: 3 })
         .expect("Couldn't end turn");
-    assert_eq!(game.context.discard_pile.size(), 2);
+    assert_eq!(game.context.discard_pile.size(), 3);
 
     // Then James again
     game.start_player_turn(&james_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
     game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
         .expect("Couldn't end turn");
-    assert_eq!(game.context.discard_pile.size(), 3);
+    assert_eq!(game.context.discard_pile.size(), 4);
 }

@@ -9,8 +9,7 @@ pub struct Card {
 }
 
 impl Card {
-    // TODO: make private so people can't fabricate cards
-    pub fn new(value: i32) -> Self {
+    fn new(value: i32) -> Self {
         Self {
             value: CardValue::from(value),
             flipped: false,
@@ -94,21 +93,23 @@ impl From<CardValue> for i32 {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Deck(Vec<Card>);
 
-impl Deck {
-    pub const EMPTY_SIZE: usize = 0;
-    pub const FULL_SIZE: usize = 150;
-
+impl Default for Deck {
     /// Create a new deck which consists of ten full sets of -2 through 12.
-    pub fn new() -> Self {
+    fn default() -> Self {
         let cards = (0..10)
             .map(|_| (-2..=12).map(|n| Card::new(n)).collect::<Vec<_>>())
             .flatten()
             .collect::<Vec<_>>();
         Self(cards)
     }
+}
+
+impl Deck {
+    pub const EMPTY_SIZE: usize = 0;
+    pub const FULL_SIZE: usize = 150;
 
     pub fn size(&self) -> usize {
         self.0.len()
@@ -331,13 +332,13 @@ mod tests {
 
     #[test]
     fn can_initialize_deck_in_order() {
-        let mut deck = Deck::new();
+        let mut deck = Deck::default();
         assert_eq!(deck.draw(), Some(Card::new(12)));
     }
 
     #[test]
     fn deck_has_a_size() {
-        let mut deck = Deck::new();
+        let mut deck = Deck::default();
         assert_eq!(deck.size(), 150);
         deck.draw();
         deck.draw();
@@ -347,7 +348,7 @@ mod tests {
 
     #[test]
     fn a_deck_can_be_depleted() {
-        let mut deck = Deck::new();
+        let mut deck = Deck::default();
 
         for _ in 1..deck.size() {
             deck.draw();
@@ -363,7 +364,7 @@ mod tests {
 
     #[test]
     fn deck_can_be_shuffled() {
-        let mut deck = Deck::new();
+        let mut deck = Deck::default();
         let snapshot = deck.clone();
         deck.shuffle();
         assert_eq!(deck.size(), 150);
@@ -372,7 +373,7 @@ mod tests {
 
     #[test]
     fn small_deck_can_be_shuffled() {
-        let mut deck = Deck::new();
+        let mut deck = Deck::default();
 
         for _ in 0..(deck.size() - 10) {
             deck.draw();
