@@ -2,7 +2,7 @@ use anyhow::Result;
 use rand::Rng;
 use thiserror::Error;
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(PartialEq, Copy, Clone)]
 pub struct Card {
     value: CardValue,
     flipped: bool,
@@ -22,6 +22,21 @@ impl Card {
 
     pub fn is_flipped(&self) -> bool {
         self.flipped
+    }
+}
+
+impl std::fmt::Debug for Card {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let flipped_marker = match self.is_flipped() {
+            true => " ",
+            false => "-",
+        };
+
+        write!(
+            f,
+            "[{flipped_marker}{: >2}{flipped_marker}]",
+            self.value as i32
+        )
     }
 }
 
@@ -96,17 +111,6 @@ impl From<CardValue> for i32 {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Deck(Vec<Card>);
 
-impl Default for Deck {
-    /// Create a new deck which consists of ten full sets of -2 through 12.
-    fn default() -> Self {
-        let cards = (0..10)
-            .map(|_| (-2..=12).map(|n| Card::new(n)).collect::<Vec<_>>())
-            .flatten()
-            .collect::<Vec<_>>();
-        Self(cards)
-    }
-}
-
 impl Deck {
     pub const EMPTY_SIZE: usize = 0;
     pub const FULL_SIZE: usize = 150;
@@ -177,6 +181,17 @@ impl Deck {
     }
 }
 
+impl Default for Deck {
+    /// Create a new deck which consists of ten full sets of -2 through 12.
+    fn default() -> Self {
+        let cards = (0..10)
+            .map(|_| (-2..=12).map(|n| Card::new(n)).collect::<Vec<_>>())
+            .flatten()
+            .collect::<Vec<_>>();
+        Self(cards)
+    }
+}
+
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct DiscardPile(Vec<Card>);
 
@@ -218,7 +233,7 @@ pub enum SpreadActionError {
 type FourColumns = [Option<Card>; 4];
 type ThreeByFourGrid = [FourColumns; 3];
 
-#[derive(Debug, Default, Clone, PartialEq)]
+#[derive(Default, Clone, PartialEq)]
 pub struct PlayerSpread(ThreeByFourGrid);
 
 impl PlayerSpread {
@@ -297,6 +312,24 @@ impl PlayerSpread {
             .filter(|c| c.is_some())
             .collect::<Vec<_>>()
             .len()
+    }
+}
+
+impl std::fmt::Debug for PlayerSpread {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        let cards = self
+            .0
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .filter_map(|column| column.as_ref())
+                    .map(|column| format!("{column:?}"))
+                    .collect::<Vec<_>>()
+                    .join("  ")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        write!(f, "\n{}", cards)
     }
 }
 
