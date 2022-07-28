@@ -46,7 +46,6 @@ fn a_started_game_deals_cards_to_players() {
             .view()
             .into_iter()
             .flatten()
-            .filter(|x| x.is_some() && !x.unwrap().is_flipped())
             .collect::<Vec<_>>()
             .len(),
         12
@@ -197,4 +196,15 @@ fn multiple_players_session_1() {
     game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
         .expect("Couldn't end turn");
     assert_eq!(game.context.discard_pile.size(), 4);
+
+    let cassie = &game.get_player(&cassie_id).unwrap();
+    let flipped_over_in_spread = cassie
+        .spread
+        .view()
+        .into_iter()
+        .flatten()
+        .filter(|card| card.is_some())
+        .collect::<Vec<_>>()
+        .len();
+    assert_eq!(flipped_over_in_spread, 2);
 }

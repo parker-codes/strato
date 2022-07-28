@@ -41,7 +41,7 @@ impl std::fmt::Debug for Card {
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
-enum CardValue {
+pub enum CardValue {
     NegativeTwo,
     NegativeOne,
     Zero,
@@ -246,8 +246,23 @@ impl PlayerSpread {
         ])
     }
 
-    pub fn view(&self) -> ThreeByFourGrid {
-        self.0.clone()
+    pub fn view(&self) -> Vec<Vec<Option<CardValue>>> {
+        self.0
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .filter(|column| column.is_some())
+                    .map(|column| {
+                        let card = column.unwrap(); // already filtered out Nones
+                        if card.is_flipped() {
+                            Some(card.value)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
     }
 
     /// Take a card from a specified row and column.
