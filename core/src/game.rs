@@ -178,7 +178,9 @@ pub enum GameState {
     #[default]
     WaitingForPlayers,
     Startup,
+    // TODO: Need a state where players flip 2 cards to determine who goes first. Order doesn't matter.
     Active,
+    LastRound, // TODO: everyone gets one last go
     Ended,
 }
 
