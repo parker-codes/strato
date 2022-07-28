@@ -11,7 +11,7 @@ use rocket::{Shutdown, State};
 #[launch]
 fn rocket() -> _ {
     rocket::build()
-        .manage(channel::<Message>(1024).0)
+        .manage(channel::<ServerUpdate>(1024).0)
         .mount("/", routes![index, post, events])
 }
 
@@ -33,15 +33,26 @@ fn index() -> &'static str {
 
 /// Receive a message from a form submission and broadcast it to any receivers.
 #[post("/message", data = "<form>")]
-fn post(form: Form<Message>, queue: &State<Sender<Message>>) {
+fn post(form: Form<Message>, queue: &State<Sender<ServerUpdate>>) {
+    let update = ServerUpdate::GameStateChanged;
+
     // A send 'fails' if there are no active subscribers. That's okay.
-    let _res = queue.send(form.into_inner());
+    let _res = queue.send(update);
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(crate = "rocket::serde")]
+enum ServerUpdate {
+    GameStateChanged,
+    PlayerJoined,
+    PlayerStartedTurn,
+    PlayerEndedTurn,
 }
 
 /// Returns an infinite stream of server-sent events. Each event is a message
 /// pulled from a broadcast queue.
 #[get("/events")]
-async fn events(queue: &State<Sender<Message>>, mut end: Shutdown) -> EventStream![] {
+async fn events(queue: &State<Sender<ServerUpdate>>, mut end: Shutdown) -> EventStream![] {
     let mut rx = queue.subscribe();
     EventStream! {
         loop {
