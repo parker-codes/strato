@@ -6,7 +6,7 @@ use dioxus::{core::to_owned, prelude::*};
 use js_sys::Date;
 
 fn main() {
-    dioxus::web::launch(App);
+    dioxus_web::launch(App);
 }
 
 fn App(cx: Scope) -> Element {
