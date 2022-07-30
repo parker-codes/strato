@@ -376,30 +376,11 @@ name = "dioxus"
 version = "0.2.4"
 source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
 dependencies = [
- "dioxus-core 0.2.1 (git+https://github.com/DioxusLabs/dioxus?branch=master)",
+ "dioxus-core",
  "dioxus-core-macro",
  "dioxus-hooks",
- "dioxus-html 0.2.1 (git+https://github.com/DioxusLabs/dioxus?branch=master)",
+ "dioxus-html",
  "dioxus-rsx",
-]
-
-[[package]]
-name = "dioxus-core"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "50fd75cb8f4752b122e3935eaa65b4c8c5c61dac2a305cb3d4c3422a01e0aee2"
-dependencies = [
- "backtrace",
- "bumpalo",
- "futures-channel",
- "futures-util",
- "fxhash",
- "indexmap",
- "log",
- "longest-increasing-subsequence",
- "once_cell",
- "slab",
- "smallvec",
 ]
 
 [[package]]
@@ -416,6 +397,7 @@ dependencies = [
  "log",
  "longest-increasing-subsequence",
  "once_cell",
+ "serde",
  "slab",
  "smallvec",
 ]
@@ -436,7 +418,7 @@ name = "dioxus-hooks"
 version = "0.2.1"
 source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
 dependencies = [
- "dioxus-core 0.2.1 (git+https://github.com/DioxusLabs/dioxus?branch=master)",
+ "dioxus-core",
  "futures-channel",
  "log",
 ]
@@ -444,30 +426,20 @@ dependencies = [
 [[package]]
 name = "dioxus-html"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c42fe33f30303e9acb0404e9c9aa61535ab50ad9e84f4809543881ee6a2b5abc"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
 dependencies = [
- "dioxus-core 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dioxus-core",
+ "enumset",
+ "euclid",
+ "keyboard-types",
  "wasm-bindgen",
  "web-sys",
 ]
 
 [[package]]
-name = "dioxus-html"
-version = "0.2.1"
-source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
-dependencies = [
- "dioxus-core 0.2.1 (git+https://github.com/DioxusLabs/dioxus?branch=master)",
- "enumset",
- "euclid",
- "keyboard-types",
-]
-
-[[package]]
 name = "dioxus-interpreter-js"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d78a436643ca61ca4f5dec869fb91318c72068a013d2d5e21f9960810453b47"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -487,13 +459,12 @@ dependencies = [
 [[package]]
 name = "dioxus-web"
 version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61399ab0ebd255e3ad58c46cebc2a2db5d69a22af80bca68fe0a9aaf6480058f"
+source = "git+https://github.com/DioxusLabs/dioxus?branch=master#df5338f4e6e4c8f63190035a4d0b351165c941fa"
 dependencies = [
  "anyhow",
  "console_error_panic_hook",
- "dioxus-core 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "dioxus-html 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "dioxus-core",
+ "dioxus-html",
  "dioxus-interpreter-js",
  "futures-channel",
  "futures-util",
