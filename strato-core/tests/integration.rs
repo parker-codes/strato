@@ -1,4 +1,4 @@
-use core::{
+use strato_core::{
     self,
     card::Deck,
     game::{GameState, StratoGame},

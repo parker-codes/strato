@@ -16,6 +16,14 @@ impl Card {
         }
     }
 
+    pub fn get_value(&self) -> Option<CardValue> {
+        if self.is_flipped() {
+            Some(self.value)
+        } else {
+            None
+        }
+    }
+
     pub fn flip(&mut self) {
         self.flipped = true;
     }
@@ -251,14 +259,14 @@ impl PlayerSpread {
             .iter()
             .map(|row| {
                 row.iter()
-                    .filter(|column| column.is_some())
                     .map(|column| {
-                        let card = column.unwrap(); // already filtered out Nones
-                        if card.is_flipped() {
-                            Some(card.value)
-                        } else {
-                            None
+                        if let Some(card) = column {
+                            if card.is_flipped() {
+                                return Some(card.value);
+                            }
                         }
+                        // otherwise
+                        None
                     })
                     .collect::<Vec<_>>()
             })
