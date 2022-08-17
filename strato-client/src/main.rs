@@ -40,30 +40,41 @@ fn app(cx: Scope) -> Element {
 
 #[inline_props]
 fn Card(cx: Scope<CardProps>, #[props(!optional)] value: Option<CardValue>) -> Element {
-    let value_display = match *value {
-        Some(value) => (value as i32).to_string(),
-        None => "(hidden)".to_string(),
-    };
-    // let face_color = get_face_color_class(value.unwrap_or(CardValue::NegativeTwo));
+    if let Some(value) = *value {
+        // face of card
 
-    cx.render(rsx! {
-        div {
-            class: "border-2 border-black aspect-[2.5/3.5] grid place-content-center",
-            "{value_display}"
-        }
-    })
+        let value_display = (value as i32).to_string();
+        let face_color = get_face_color_class(value);
+
+        return cx.render(rsx! {
+            div {
+                class: "border-2 border-black aspect-[2.5/3.5] {face_color} grid place-content-center",
+                "{value_display}"
+            }
+        });
+    } else {
+        // back of card
+
+        return cx.render(rsx! {
+            div {
+                class: "border-2 border-black aspect-[2.5/3.5] grid place-content-center",
+                "(hidden)"
+            }
+        });
+    }
 }
 
 fn get_face_color_class(value: CardValue) -> String {
     // TODO: Somehow cards are starting at 13 instead of 12...
     // I need to check the tests output to see if this is true everywhere
-    console::log_1(&format!("{}", value as i32).into());
-    match value as i32 {
-        -2..=-1 => String::from("bg-indigo-400"),
-        0 => String::from("bg-sky-400"),
-        1..=4 => String::from("bg-green-400"),
-        5..=8 => String::from("bg-yellow-500"),
-        9..=12 => String::from("bg-red-400"),
+    console::log_1(&format!("as i32: {}", value as i32).into());
+    console::log_1(&format!("i32::from: {}", i32::from(value)).into());
+    match i32::from(value) {
+        -2..=-1 => String::from("bg-indigo-300"),
+        0 => String::from("bg-sky-300"),
+        1..=4 => String::from("bg-green-300"),
+        5..=8 => String::from("bg-yellow-300"),
+        9..=12 => String::from("bg-red-300"),
         _ => unreachable!(),
     }
 }

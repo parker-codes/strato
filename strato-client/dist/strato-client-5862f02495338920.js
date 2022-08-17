@@ -760,6 +760,9 @@ imports.wbg.__wbg_instanceof_HtmlElement_057bfd3477e9b9b6 = function(arg0) {
     const ret = getObject(arg0) instanceof HTMLElement;
     return ret;
 };
+imports.wbg.__wbg_log_17733ab6fa45831d = function(arg0) {
+    console.log(getObject(arg0));
+};
 imports.wbg.__wbg_data_b5d6ae35216847ce = function(arg0, arg1) {
     const ret = getObject(arg1).data;
     const ptr0 = passStringToWasm0(ret, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
@@ -914,20 +917,20 @@ imports.wbg.__wbindgen_object_drop_ref = function(arg0) {
 imports.wbg.__wbindgen_throw = function(arg0, arg1) {
     throw new Error(getStringFromWasm0(arg0, arg1));
 };
-imports.wbg.__wbindgen_closure_wrapper1414 = function(arg0, arg1, arg2) {
-    const ret = makeClosure(arg0, arg1, 83, __wbg_adapter_18);
+imports.wbg.__wbindgen_closure_wrapper1437 = function(arg0, arg1, arg2) {
+    const ret = makeClosure(arg0, arg1, 86, __wbg_adapter_18);
     return addHeapObject(ret);
 };
-imports.wbg.__wbindgen_closure_wrapper1416 = function(arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 85, __wbg_adapter_21);
+imports.wbg.__wbindgen_closure_wrapper1439 = function(arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 88, __wbg_adapter_21);
     return addHeapObject(ret);
 };
-imports.wbg.__wbindgen_closure_wrapper2092 = function(arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 171, __wbg_adapter_24);
+imports.wbg.__wbindgen_closure_wrapper2115 = function(arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 174, __wbg_adapter_24);
     return addHeapObject(ret);
 };
-imports.wbg.__wbindgen_closure_wrapper2528 = function(arg0, arg1, arg2) {
-    const ret = makeMutClosure(arg0, arg1, 205, __wbg_adapter_27);
+imports.wbg.__wbindgen_closure_wrapper2551 = function(arg0, arg1, arg2) {
+    const ret = makeMutClosure(arg0, arg1, 208, __wbg_adapter_27);
     return addHeapObject(ret);
 };
 
@@ -961,7 +964,7 @@ function initSync(bytes) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('strato-client-8099f2f143458fab_bg.wasm', import.meta.url);
+        input = new URL('strato-client-5862f02495338920_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 
