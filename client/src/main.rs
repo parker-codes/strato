@@ -17,10 +17,13 @@ fn app(cx: Scope) -> Element {
     flipped_card.flip();
     spread.place_at(flipped_card, 0, 0).unwrap();
 
-    // 11-9
+    // 11-10
     deck.draw().unwrap();
     deck.draw().unwrap();
-    deck.draw().unwrap();
+
+    let mut flipped_card = deck.draw().unwrap();
+    flipped_card.flip();
+    spread.place_at(flipped_card, 0, 1).unwrap();
 
     deck.draw().unwrap();
     // let mut flipped_card = deck.draw().unwrap();
@@ -44,9 +47,10 @@ fn app(cx: Scope) -> Element {
     flipped_card.flip();
     spread.place_at(flipped_card, 1, 1).unwrap();
 
-    let mut flipped_card = deck.draw().unwrap();
-    flipped_card.flip();
-    spread.place_at(flipped_card, 1, 2).unwrap();
+    deck.draw().unwrap();
+    // let mut flipped_card = deck.draw().unwrap();
+    // flipped_card.flip();
+    // spread.place_at(flipped_card, 1, 2).unwrap();
 
     let mut flipped_card = deck.draw().unwrap();
     flipped_card.flip();
@@ -69,7 +73,11 @@ fn app(cx: Scope) -> Element {
     spread.place_at(flipped_card, 2, 3).unwrap();
 
     cx.render(rsx! {
-        div { "Hello, world!" },
+        div {
+            class: "text-white text-2xl",
+            "Strato!"
+        },
+
         // TODO: create component for PlayerSpread
         div {
             class: "w-full max-w-xl grid grid-rows-3 grid-cols-4 justify-center gap-4",
@@ -79,45 +87,71 @@ fn app(cx: Scope) -> Element {
                 })}
             })}
         },
+
         Heart {},
     })
 }
 
 #[inline_props]
-fn Card(cx: Scope<CardProps>, #[props(!optional)] value: Option<CardValue>) -> Element {
-    if let Some(value) = *value {
-        // face of card
+fn Card(cx: Scope, #[props(!optional)] value: Option<CardValue>) -> Element {
+    return cx.render(rsx! {
+        div {
+            class: "relative aspect-[2.5/3.5] bg-white rounded-md",
 
-        let value_display = i32::from(value).to_string();
-        let face_color = get_face_color_class(value);
-
-        return cx.render(rsx! {
             div {
-                class: "border-2 border-black aspect-[2.5/3.5] {face_color} grid place-content-center",
-                "{value_display}"
-            }
-        });
-    } else {
-        // back of card
+                class: "absolute inset-1",
 
-        return cx.render(rsx! {
-            div {
-                class: "border-2 border-black aspect-[2.5/3.5] grid place-content-center",
-                "(hidden)"
+                if let Some(value) = *value {
+                    rsx!(FaceOfCard { value: value })
+                } else {
+                    rsx!(BackOfCard {})
+                }
             }
-        });
-    }
+        }
+    });
+}
+
+#[inline_props]
+fn FaceOfCard(cx: Scope, value: CardValue) -> Element {
+    let value_display = i32::from(*value).to_string();
+    let face_color_class = get_face_color_class(*value);
+    let underline_class = get_underline_class(*value);
+
+    return cx.render(rsx! {
+        div {
+            class: "h-full {face_color_class} grid place-items-center text-5xl font-bold text-white {underline_class}",
+            text_shadow: "2px 2px 2px black",
+            "{value_display}"
+        }
+    });
+}
+
+#[inline_props]
+fn BackOfCard(cx: Scope) -> Element {
+    return cx.render(rsx! {
+        div {
+            class: "h-full bg-black",
+            "(hidden)"
+        }
+    });
 }
 
 fn get_face_color_class(value: CardValue) -> String {
     console::log_1(&format!("{:?} -> i32::from: {}", value, i32::from(value)).into());
     match i32::from(value) {
-        -2..=-1 => String::from("bg-indigo-300"),
-        0 => String::from("bg-sky-300"),
-        1..=4 => String::from("bg-green-300"),
+        -2..=-1 => String::from("bg-indigo-500"),
+        0 => String::from("bg-sky-400"),
+        1..=4 => String::from("bg-green-400"),
         5..=8 => String::from("bg-yellow-300"),
-        9..=12 => String::from("bg-red-300"),
+        9..=12 => String::from("bg-red-500"),
         _ => unreachable!(),
+    }
+}
+
+fn get_underline_class(value: CardValue) -> String {
+    match value {
+        CardValue::Six | CardValue::Nine => String::from("underline"),
+        _ => String::from(""),
     }
 }
 
