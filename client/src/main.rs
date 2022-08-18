@@ -2,7 +2,7 @@
 
 use dioxus::prelude::*;
 use std::default::Default;
-use strato_core::card::{CardValue, Deck, PlayerSpread};
+use strato::card::{CardValue, Deck, PlayerSpread};
 use web_sys::console;
 
 fn main() {

@@ -1,12 +1,12 @@
 [package]
-name = "strato-client"
+name = "client"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-strato-core = { path = "../strato-core" }
+strato = { path = "../strato" }
 dioxus = "0.2.4"
 dioxus-web = "0.2.1"
 getrandom = { version = "0.2.7", features = ["js"] }

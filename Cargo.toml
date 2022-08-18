@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "strato-core",
-    "strato-server",
-    "strato-client",
+    "strato",
+    "server",
+    "client",
 ]

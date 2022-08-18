@@ -207,6 +207,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "client"
+version = "0.1.0"
+dependencies = [
+ "dioxus",
+ "dioxus-web",
+ "getrandom",
+ "strato",
+ "web-sys",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1296,6 +1307,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "server"
+version = "0.1.0"
+dependencies = [
+ "rocket",
+]
+
+[[package]]
 name = "sha2"
 version = "0.10.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1383,30 +1401,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "strato-client"
-version = "0.1.0"
-dependencies = [
- "dioxus",
- "dioxus-web",
- "getrandom",
- "strato-core",
- "web-sys",
-]
-
-[[package]]
-name = "strato-core"
+name = "strato"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "rand",
  "thiserror",
-]
-
-[[package]]
-name = "strato-server"
-version = "0.1.0"
-dependencies = [
- "rocket",
 ]
 
 [[package]]
