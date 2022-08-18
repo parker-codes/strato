@@ -964,7 +964,7 @@ function initSync(bytes) {
 
 async function init(input) {
     if (typeof input === 'undefined') {
-        input = new URL('strato-client-981b4602813b290f_bg.wasm', import.meta.url);
+        input = new URL('strato-client-db63c1846a2345ba_bg.wasm', import.meta.url);
     }
     const imports = getImports();
 

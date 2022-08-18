@@ -22,13 +22,15 @@ fn app(cx: Scope) -> Element {
     deck.draw().unwrap();
     deck.draw().unwrap();
 
-    let mut flipped_card = deck.draw().unwrap();
-    flipped_card.flip();
-    spread.place_at(flipped_card, 0, 1).unwrap();
+    deck.draw().unwrap();
+    // let mut flipped_card = deck.draw().unwrap();
+    // flipped_card.flip();
+    // spread.place_at(flipped_card, 0, 1).unwrap();
 
-    let mut flipped_card = deck.draw().unwrap();
-    flipped_card.flip();
-    spread.place_at(flipped_card, 0, 2).unwrap();
+    deck.draw().unwrap();
+    // let mut flipped_card = deck.draw().unwrap();
+    // flipped_card.flip();
+    // spread.place_at(flipped_card, 0, 2).unwrap();
 
     let mut flipped_card = deck.draw().unwrap();
     flipped_card.flip();
