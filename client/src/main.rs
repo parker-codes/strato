@@ -111,6 +111,8 @@ fn Card(cx: Scope, #[props(!optional)] value: Option<CardValue>) -> Element {
     });
 }
 
+const HEX_PATTERN: &'static str = "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cg fill-rule='evenodd'%3E%3Cg id='hexagons' fill='%23ffffff' fill-opacity='0.4' fill-rule='nonzero'%3E%3Cpath d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E\")";
+
 #[inline_props]
 fn FaceOfCard(cx: Scope, value: CardValue) -> Element {
     let value_display = i32::from(*value).to_string();
@@ -119,9 +121,27 @@ fn FaceOfCard(cx: Scope, value: CardValue) -> Element {
 
     return cx.render(rsx! {
         div {
-            class: "h-full {face_color_class} grid place-items-center text-5xl font-bold text-white {underline_class}",
-            text_shadow: "2px 2px 2px black",
-            "{value_display}"
+            class: "h-full {face_color_class}",
+            background_image: "{HEX_PATTERN}",
+
+            div {
+                class: "absolute inset-[10%]",
+                svg {
+                    class: "h-full w-full",
+                    view_box: "0 0 103 103",
+
+                    polygon {
+                        class: "stroke-0 fill-white opacity-40",
+                        points: "50 3,100 28,100 75, 50 100,3 75,3 25",
+                    },
+                },
+            },
+
+            span {
+                class: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-black {underline_class}",
+                text_shadow: "3px 3px 3px white",
+                "{value_display}"
+            }
         }
     });
 }
@@ -130,8 +150,17 @@ fn FaceOfCard(cx: Scope, value: CardValue) -> Element {
 fn BackOfCard(cx: Scope) -> Element {
     return cx.render(rsx! {
         div {
-            class: "h-full bg-black",
-            "(hidden)"
+            class: "h-full bg-slate-900",
+            background_image: "{HEX_PATTERN}",
+
+            div {
+                class: "absolute inset-[5%] border-4 border-white opacity-40",
+            },
+
+            span {
+                class: "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-5xl font-bold text-white",
+                "S"
+            }
         }
     });
 }
