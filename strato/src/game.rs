@@ -8,12 +8,14 @@ use thiserror::Error;
 use crate::card::{Deck, DiscardPile};
 use crate::player::{EndAction, Player, StartAction};
 
-#[derive(Error, Debug)]
+#[derive(Error, Debug, PartialEq)]
 pub enum GameStartupError {
     #[error("The game has already been started.")]
     GameAlreadyStarted,
     #[error("Can't add players after the game has started.")]
     PlayersListLocked,
+    #[error("Not enough players to start the game.")]
+    NotEnoughPlayers,
     #[error(transparent)]
     PlayerSpreadError(#[from] crate::card::SpreadActionError),
     #[error("No more cards in the deck.")]
@@ -102,7 +104,9 @@ impl<'s> StratoGame<'s> {
     pub fn start(&mut self) -> Result<(), GameStartupError> {
         if self.state == GameState::Active {
             return Err(GameStartupError::GameAlreadyStarted);
-        } else if self.state == GameState::WaitingForPlayers && self.context.players.len() > 0 {
+        } else if self.context.players.len() < 2 {
+            return Err(GameStartupError::NotEnoughPlayers);
+        } else if self.state == GameState::WaitingForPlayers {
             self.update_state(GameState::Startup);
 
             self.context.deck.shuffle();
