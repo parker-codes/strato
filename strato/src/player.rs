@@ -12,7 +12,7 @@ pub enum PlayerActionError {
 pub struct Player {
     // TODO: Use private key for auth?
     /// A generated identifier.
-    pub id: String,
+    id: String,
     /// The player's chosen name or alias.
     name: &'static str,
     /// The card the user has in-hand after drawing from the deck or taking from the discard pile.
@@ -29,6 +29,14 @@ impl Player {
             holding: None,
             spread: PlayerSpread::new(),
         }
+    }
+
+    pub fn id(&self) -> String {
+        self.id.clone()
+    }
+
+    pub fn name(&self) -> String {
+        self.name.to_string()
     }
 
     /// View what the player is holding, if anything.

@@ -96,7 +96,7 @@ impl<'s> StratoGame<'s> {
         self.context
             .players
             .iter()
-            .find(|p| p.id == player_id.clone().into())
+            .find(|p| p.id() == player_id.clone().into())
     }
 
     pub fn start(&mut self) -> Result<(), GameStartupError> {
@@ -145,7 +145,7 @@ impl<'s> StratoGame<'s> {
             .context
             .players
             .iter_mut()
-            .find(|p| p.id == player_id.clone().into())
+            .find(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
         match action {
@@ -175,7 +175,7 @@ impl<'s> StratoGame<'s> {
             .context
             .players
             .iter_mut()
-            .find(|p| p.id == player_id.clone().into())
+            .find(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
         let card_from_hand = player.release().ok_or(PlayerTurnError::TurnNotStarted)?;
