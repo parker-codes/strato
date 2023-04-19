@@ -1,9 +1,22 @@
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
+
 use strato::{
     self,
     card::Deck,
-    game::{GameEvent, GameState, StratoGame},
+    game::{GameEvent, GameStartupError, GameState, StratoGame},
     player::{EndAction, StartAction},
 };
+
+fn start_game() -> (StratoGame<'static>, String, String) {
+    let mut game = StratoGame::new();
+    let player_1_id = game.add_player("Parker").unwrap();
+    let player_2_id = game.add_player("Trevor").unwrap();
+    game.start().unwrap();
+    (game, player_1_id, player_2_id)
+}
 
 #[test]
 fn a_game_can_be_initialized() {
@@ -23,23 +36,25 @@ fn players_can_be_added() {
 fn a_game_can_be_started() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
-    game.start().unwrap();
+    game.add_player("Trevor").unwrap();
+    let result = game.start();
+    assert!(result.is_ok());
     assert_eq!(game.state, GameState::Active);
 }
 
 #[test]
 fn cant_start_without_players() {
     let mut game = StratoGame::new();
-    game.start().unwrap();
+    let result = game.start();
+    assert_eq!(result.unwrap_err(), GameStartupError::NotEnoughPlayers);
     assert_eq!(game.state, GameState::WaitingForPlayers);
 }
 
 #[test]
 fn a_started_game_deals_cards_to_players() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Joe").unwrap();
-    game.start().unwrap();
-    let player = game.get_player(player_id).unwrap();
+    let (game, player_1_id, _) = start_game();
+    let player = game.get_player(&player_1_id).unwrap();
+
     assert_eq!(
         player
             .spread
@@ -50,18 +65,19 @@ fn a_started_game_deals_cards_to_players() {
             .len(),
         12
     );
-    let cards_used = 12 /* for player */ + 1 /* for discard init */;
+    let cards_used = (12 * 2) /* for 2 players */ + 1 /* for discard init */;
     assert_eq!(game.context.deck.size(), Deck::FULL_SIZE - cards_used);
 }
 
 #[test]
 fn starting_multiple_times_is_inconsequential() {
-    let mut game = StratoGame::new();
-    game.add_player("Parker").unwrap();
-    game.start().unwrap();
+    let (mut game, _, _) = start_game();
     let deck_snapshot = game.context.deck.clone();
     assert!(game.start().is_err());
-    assert!(game.start().is_err());
+    assert_eq!(
+        game.start().unwrap_err(),
+        GameStartupError::GameAlreadyStarted
+    );
     assert_eq!(game.state, GameState::Active);
     assert_eq!(deck_snapshot, game.context.deck);
 }
@@ -91,57 +107,47 @@ fn cant_change_players_after_game_starts() {
 
 #[test]
 fn the_first_turn_can_take_from_discard_pile() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Kristen").unwrap();
-    game.start().unwrap();
-    let turn = game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile);
+    let (mut game, player_1_id, _) = start_game();
+    let turn = game.start_player_turn(&player_1_id, StartAction::TakeFromDiscardPile);
     assert!(turn.is_ok());
 }
 
 #[test]
 fn a_player_can_draw_and_flip() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Trevor").unwrap();
-    game.start().unwrap();
-
-    game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+    let (mut game, player_1_id, _) = start_game();
+    game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&player_id).unwrap().holding().is_some());
-    game.end_player_turn(&player_id, EndAction::Flip { row: 1, column: 2 })
+    assert!(game.get_player(&player_1_id).unwrap().holding().is_some());
+    game.end_player_turn(&player_1_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&player_id).unwrap().holding().is_none());
+    assert!(game.get_player(&player_1_id).unwrap().holding().is_none());
     assert_eq!(game.context.discard_pile.size(), 2); // discard init contains 1 already
 }
 
 #[test]
 fn a_player_can_take_and_swap() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Jon").unwrap();
-    game.start().unwrap();
-
-    game.start_player_turn(&player_id, StartAction::TakeFromDiscardPile)
+    let (mut game, player_1_id, _) = start_game();
+    game.start_player_turn(&player_1_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start turn");
-    assert!(game.get_player(&player_id).unwrap().holding().is_some());
-    game.end_player_turn(&player_id, EndAction::Swap { row: 2, column: 2 })
+    assert!(game.get_player(&player_1_id).unwrap().holding().is_some());
+    game.end_player_turn(&player_1_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end turn");
-    assert!(game.get_player(&player_id).unwrap().holding().is_none());
+    assert!(game.get_player(&player_1_id).unwrap().holding().is_none());
     assert_eq!(game.context.discard_pile.size(), 1); // discard init contains 1 already
 }
 
 #[test]
 fn cant_flip_same_card_twice() {
-    let mut game = StratoGame::new();
-    let player_id = game.add_player("Julie").unwrap();
-    game.start().unwrap();
+    let (mut game, player_1_id, _) = start_game();
 
     const ROW: usize = 0;
     const COLUMN: usize = 1;
 
     // First turn
-    game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+    game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
     game.end_player_turn(
-        &player_id,
+        &player_1_id,
         EndAction::Flip {
             row: ROW,
             column: COLUMN,
@@ -150,10 +156,10 @@ fn cant_flip_same_card_twice() {
     .expect("Couldn't end turn");
 
     // Second turn
-    game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+    game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
     let turn = game.end_player_turn(
-        &player_id,
+        &player_1_id,
         EndAction::Flip {
             row: ROW,
             column: COLUMN,
@@ -212,23 +218,27 @@ fn multiple_players_session_1() {
 #[test]
 fn can_subscribe_to_state_changes() {
     let mut game = StratoGame::new();
-    let callback_triggered = std::sync::Arc::new(std::sync::Mutex::new(false));
-    let callback_triggered_clone = callback_triggered.clone();
+    let callback_triggered = Arc::new(AtomicBool::new(false));
 
-    game.subscribe(move |e| {
-        *callback_triggered_clone.lock().unwrap() = true;
+    game.subscribe({
+        let callback_triggered = callback_triggered.clone();
 
-        assert!(
-            e == GameEvent::StateChange(&GameState::Startup)
-                || e == GameEvent::StateChange(&GameState::Active)
-        );
+        move |e| {
+            callback_triggered.store(true, Ordering::Relaxed);
+
+            assert!(
+                e == GameEvent::StateChange(&GameState::Startup)
+                    || e == GameEvent::StateChange(&GameState::Active)
+            );
+        }
     });
 
-    let player_id = game.add_player("Trevor").unwrap();
+    let player_1_id = game.add_player("Parker").unwrap();
+    let _ = game.add_player("Trevor").unwrap();
     game.start().unwrap();
 
-    game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+    game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
 
-    assert_eq!(*callback_triggered.lock().unwrap(), true);
+    assert_eq!(callback_triggered.load(Ordering::Relaxed), true);
 }
