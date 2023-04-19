@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use anyhow::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
@@ -35,16 +37,37 @@ pub enum PlayerTurnError {
 }
 
 #[derive(Debug, Clone)]
-pub struct StratoGame {
+pub struct StratoGame<'s> {
     pub state: GameState,
     pub context: GameContext,
+    subscriber: Option<Rc<Subscriber<'s>>>,
 }
 
-impl StratoGame {
+impl<'s> StratoGame<'s> {
     pub fn new() -> Self {
         Self {
             state: GameState::default(),
             context: GameContext::default(),
+            subscriber: None,
+        }
+    }
+
+    fn update_state(&mut self, state: GameState) {
+        self.state = state;
+        self.notify(GameEvent::StateChange(&self.state));
+    }
+
+    pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 's) {
+        self.subscriber = Some(Rc::new(Subscriber::new(f)));
+    }
+
+    pub fn unsubscribe(&mut self) {
+        self.subscriber = None;
+    }
+
+    fn notify(&self, event: GameEvent) {
+        if let Some(subscriber) = &self.subscriber {
+            (subscriber.0)(event);
         }
     }
 
@@ -80,7 +103,7 @@ impl StratoGame {
         if self.state == GameState::Active {
             return Err(GameStartupError::GameAlreadyStarted);
         } else if self.state == GameState::WaitingForPlayers && self.context.players.len() > 0 {
-            self.state = GameState::Startup;
+            self.update_state(GameState::Startup);
 
             self.context.deck.shuffle();
             let top_card = self.context.deck.draw().unwrap();
@@ -88,7 +111,7 @@ impl StratoGame {
             // TODO: shuffle player order
             self.deal_cards_to_players()?;
 
-            self.state = GameState::Active;
+            self.update_state(GameState::Active);
         }
 
         Ok(())
@@ -189,4 +212,23 @@ pub struct GameContext {
     pub players: Vec<Player>,
     pub deck: Deck,
     pub discard_pile: DiscardPile,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum GameEvent<'a> {
+    StateChange(&'a GameState),
+}
+
+struct Subscriber<'s>(Box<dyn Fn(GameEvent) + 's>);
+
+impl std::fmt::Debug for Subscriber<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Subscriber")
+    }
+}
+
+impl<'s> Subscriber<'s> {
+    fn new<F: Fn(GameEvent) + 's>(f: F) -> Self {
+        Self(Box::new(f))
+    }
 }

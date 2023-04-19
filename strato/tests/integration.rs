@@ -1,7 +1,7 @@
 use strato::{
     self,
     card::Deck,
-    game::{GameState, StratoGame},
+    game::{GameEvent, GameState, StratoGame},
     player::{EndAction, StartAction},
 };
 
@@ -207,4 +207,28 @@ fn multiple_players_session_1() {
         .collect::<Vec<_>>()
         .len();
     assert_eq!(flipped_over_in_spread, 2);
+}
+
+#[test]
+fn can_subscribe_to_state_changes() {
+    let mut game = StratoGame::new();
+    let callback_triggered = std::sync::Arc::new(std::sync::Mutex::new(false));
+    let callback_triggered_clone = callback_triggered.clone();
+
+    game.subscribe(move |e| {
+        *callback_triggered_clone.lock().unwrap() = true;
+
+        assert!(
+            e == GameEvent::StateChange(&GameState::Startup)
+                || e == GameEvent::StateChange(&GameState::Active)
+        );
+    });
+
+    let player_id = game.add_player("Trevor").unwrap();
+    game.start().unwrap();
+
+    game.start_player_turn(&player_id, StartAction::DrawFromDeck)
+        .expect("Couldn't start turn");
+
+    assert_eq!(*callback_triggered.lock().unwrap(), true);
 }
