@@ -28,6 +28,8 @@ pub enum PlayerTurnError {
     PlayerDoesntExist,
     #[error("You must start turn before you can end it.")]
     TurnNotStarted,
+    #[error("It is not your turn.")]
+    NotYourTurn,
     #[error(transparent)]
     PlayerActionError(#[from] crate::player::PlayerActionError),
     #[error(transparent)]
@@ -114,6 +116,7 @@ impl<'s> StratoGame<'s> {
             self.context.discard_pile.put(top_card);
             // TODO: shuffle player order
             self.deal_cards_to_players()?;
+            self.context.current_player_idx = Some(0);
 
             self.update_state(GameState::Active);
         }
@@ -145,12 +148,24 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: StartAction,
     ) -> Result<(), PlayerTurnError> {
-        let player = self
+        // TODO: Make sure we're in the right state
+
+        let player_idx = self
             .context
             .players
-            .iter_mut()
-            .find(|p| p.id() == player_id.clone().into())
+            .iter()
+            .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
+
+        let player = &mut self.context.players[player_idx];
+
+        if let Some(current_player_idx) = self.context.current_player_idx {
+            if player_idx != current_player_idx {
+                return Err(PlayerTurnError::NotYourTurn);
+            }
+        }
+
+        // TODO: handle TurnAlreadyStarted
 
         match action {
             StartAction::DrawFromDeck => {
@@ -175,12 +190,22 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: EndAction,
     ) -> Result<(), PlayerTurnError> {
-        let player = self
+        // TODO: Make sure we're in the right state
+
+        let player_idx = self
             .context
             .players
-            .iter_mut()
-            .find(|p| p.id() == player_id.clone().into())
+            .iter()
+            .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
+
+        let player = &mut self.context.players[player_idx];
+
+        if let Some(current_player_idx) = self.context.current_player_idx {
+            if player_idx != current_player_idx {
+                return Err(PlayerTurnError::NotYourTurn);
+            }
+        }
 
         let card_from_hand = player.release().ok_or(PlayerTurnError::TurnNotStarted)?;
 
@@ -196,7 +221,16 @@ impl<'s> StratoGame<'s> {
             }
         }
 
+        self.change_to_next_player();
+
         Ok(())
+    }
+
+    fn change_to_next_player(&mut self) {
+        if let Some(current_player_idx) = self.context.current_player_idx {
+            self.context.current_player_idx =
+                Some((current_player_idx + 1) % self.context.players.len());
+        }
     }
 }
 
@@ -214,6 +248,7 @@ pub enum GameState {
 #[derive(Debug, Default, Clone)]
 pub struct GameContext {
     pub players: Vec<Player>,
+    pub current_player_idx: Option<usize>,
     pub deck: Deck,
     pub discard_pile: DiscardPile,
 }
