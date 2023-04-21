@@ -343,8 +343,7 @@ impl PlayerSpread {
             .flatten()
             .filter(|c| c.is_some())
             .filter(|c| c.as_ref().unwrap().is_flipped())
-            .collect::<Vec<_>>()
-            .len()
+            .count()
     }
 }
 
