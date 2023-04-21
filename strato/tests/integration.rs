@@ -6,15 +6,18 @@ use std::sync::{
 use strato::{
     self,
     card::Deck,
-    game::{GameEvent, GameStartupError, GameState, PlayerTurnError, StratoGame},
+    game::{GameEvent, GameOptions, GameStartupError, GameState, PlayerTurnError, StratoGame},
     player::{EndAction, StartAction},
 };
 
-fn start_game() -> (StratoGame<'static>, String, String) {
+fn start_game_with_order() -> (StratoGame<'static>, String, String) {
     let mut game = StratoGame::new();
     let player_1_id = game.add_player("Parker").unwrap();
     let player_2_id = game.add_player("Trevor").unwrap();
-    game.start().unwrap();
+    game.start_with_options(GameOptions {
+        first_player_idx: Some(0),
+    })
+    .unwrap();
     (game, player_1_id, player_2_id)
 }
 
@@ -39,6 +42,20 @@ fn a_game_can_be_started() {
     game.add_player("Trevor").unwrap();
     let result = game.start();
     assert!(result.is_ok());
+    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+}
+
+#[test]
+fn a_game_can_be_started_with_specific_start_player() {
+    let previous_winner_idx = 1;
+
+    let mut game = StratoGame::new();
+    game.add_player("Parker").unwrap();
+    game.add_player("Trevor").unwrap();
+    let result = game.start_with_options(GameOptions {
+        first_player_idx: Some(previous_winner_idx),
+    });
+    assert!(result.is_ok());
     assert_eq!(game.state, GameState::Active);
 }
 
@@ -52,7 +69,7 @@ fn cant_start_without_players() {
 
 #[test]
 fn a_started_game_deals_cards_to_players() {
-    let (game, player_1_id, _) = start_game();
+    let (game, player_1_id, _) = start_game_with_order();
     let player = game.get_player(&player_1_id).unwrap();
 
     assert_eq!(
@@ -71,7 +88,7 @@ fn a_started_game_deals_cards_to_players() {
 
 #[test]
 fn starting_multiple_times_is_inconsequential() {
-    let (mut game, _, _) = start_game();
+    let (mut game, _, _) = start_game_with_order();
     let deck_snapshot = game.context.deck.clone();
     assert!(game.start().is_err());
     assert_eq!(
@@ -97,7 +114,10 @@ fn cant_change_players_after_game_starts() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
     game.add_player("Lexi").unwrap();
-    game.start().unwrap();
+    game.start_with_options(GameOptions {
+        first_player_idx: Some(0),
+    })
+    .unwrap();
     assert_eq!(game.state, GameState::Active);
 
     let player_3_id = game.add_player("Trevor");
@@ -107,14 +127,14 @@ fn cant_change_players_after_game_starts() {
 
 #[test]
 fn the_first_turn_can_take_from_discard_pile() {
-    let (mut game, player_1_id, _) = start_game();
+    let (mut game, player_1_id, _) = start_game_with_order();
     let turn = game.start_player_turn(&player_1_id, StartAction::TakeFromDiscardPile);
     assert!(turn.is_ok());
 }
 
 #[test]
 fn a_player_can_draw_and_flip() {
-    let (mut game, player_1_id, _) = start_game();
+    let (mut game, player_1_id, _) = start_game_with_order();
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
     assert!(game.get_player(&player_1_id).unwrap().holding().is_some());
@@ -126,7 +146,7 @@ fn a_player_can_draw_and_flip() {
 
 #[test]
 fn a_player_can_take_and_swap() {
-    let (mut game, player_1_id, _) = start_game();
+    let (mut game, player_1_id, _) = start_game_with_order();
     game.start_player_turn(&player_1_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start turn");
     assert!(game.get_player(&player_1_id).unwrap().holding().is_some());
@@ -138,7 +158,7 @@ fn a_player_can_take_and_swap() {
 
 #[test]
 fn cant_flip_same_card_twice() {
-    let (mut game, player_1_id, player_2_id) = start_game();
+    let (mut game, player_1_id, player_2_id) = start_game_with_order();
 
     const ROW: usize = 0;
     const COLUMN: usize = 1;
@@ -182,7 +202,7 @@ fn cant_flip_same_card_twice() {
 
 #[test]
 fn cant_start_turn_twice() {
-    let (mut game, player_1_id, _) = start_game();
+    let (mut game, player_1_id, _) = start_game_with_order();
 
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start Player 1's turn");
@@ -251,6 +271,7 @@ fn can_subscribe_to_state_changes() {
 
             assert!(
                 e == GameEvent::StateChange(&GameState::Startup)
+                    || e == GameEvent::StateChange(&GameState::DetermineFirstPlayer)
                     || e == GameEvent::StateChange(&GameState::Active)
             );
         }

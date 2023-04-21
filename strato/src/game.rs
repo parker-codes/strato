@@ -26,6 +26,8 @@ pub enum GameStartupError {
 pub enum PlayerTurnError {
     #[error("Couldn't find a player with that ID.")]
     PlayerDoesntExist,
+    #[error("The first player has already been determined.")]
+    NotDeterminingFirstPlayer,
     #[error("You can't start your turn when it is already started.")]
     TurnAlreadyStarted,
     #[error("You must start turn before you can end it.")]
@@ -106,6 +108,14 @@ impl<'s> StratoGame<'s> {
     }
 
     pub fn start(&mut self) -> Result<(), GameStartupError> {
+        self.handle_start(GameOptions::default())
+    }
+
+    pub fn start_with_options(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
+        self.handle_start(options)
+    }
+
+    fn handle_start(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
         if self.state == GameState::Active {
             return Err(GameStartupError::GameAlreadyStarted);
         } else if self.context.players.len() < 2 {
@@ -116,11 +126,15 @@ impl<'s> StratoGame<'s> {
             self.context.deck.shuffle();
             let top_card = self.context.deck.draw().unwrap();
             self.context.discard_pile.put(top_card);
-            // TODO: shuffle player order
+            // TODO: shuffle player order?
             self.deal_cards_to_players()?;
-            self.context.current_player_idx = Some(0);
 
-            self.update_state(GameState::Active);
+            if let Some(first_player_idx) = options.first_player_idx {
+                self.context.current_player_idx = Some(first_player_idx);
+                self.update_state(GameState::Active);
+            } else {
+                self.update_state(GameState::DetermineFirstPlayer);
+            }
         }
 
         Ok(())
@@ -141,6 +155,32 @@ impl<'s> StratoGame<'s> {
                 }
             }
         }
+
+        Ok(())
+    }
+
+    pub fn player_flip_to_determine_who_is_first<'a, S: Into<String> + Clone>(
+        &mut self,
+        player_id: S,
+        row: usize,
+        column: usize,
+    ) -> Result<(), PlayerTurnError> {
+        if self.state != GameState::DetermineFirstPlayer {
+            return Err(PlayerTurnError::NotDeterminingFirstPlayer);
+        }
+
+        let player = self
+            .context
+            .players
+            .iter_mut()
+            .find(|p| p.id() == player_id.clone().into())
+            .ok_or(PlayerTurnError::PlayerDoesntExist)?;
+
+        // TODO: check to make sure they have 0 or 1 cards flipped
+
+        player.spread.flip_at(row, column)?;
+
+        // TODO: if all players have 2 cards flipped, transition to Active state
 
         Ok(())
     }
@@ -245,7 +285,7 @@ pub enum GameState {
     #[default]
     WaitingForPlayers,
     Startup,
-    // TODO: Need a state where players flip 2 cards to determine who goes first. Order doesn't matter.
+    DetermineFirstPlayer,
     Active,
     LastRound, // TODO: everyone gets one last go
     Ended,
@@ -276,4 +316,9 @@ impl<'s> Subscriber<'s> {
     fn new<F: Fn(GameEvent) + 's>(f: F) -> Self {
         Self(Box::new(f))
     }
+}
+
+#[derive(Default, Debug)]
+pub struct GameOptions {
+    pub first_player_idx: Option<usize>,
 }
