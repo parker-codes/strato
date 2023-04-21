@@ -37,12 +37,12 @@ impl std::fmt::Debug for Card {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         let flipped_marker = match self.is_flipped() {
             true => " ",
-            false => "-",
+            false => "█",
         };
 
         write!(
             f,
-            "[{flipped_marker}{: >2}{flipped_marker}]",
+            "[{flipped_marker}{: ^4}{flipped_marker}]",
             self.value as i32
         )
     }
@@ -355,8 +355,14 @@ impl std::fmt::Debug for PlayerSpread {
             .iter()
             .map(|row| {
                 row.iter()
-                    .filter_map(|column| column.as_ref())
-                    .map(|column| format!("{column:?}"))
+                    .map(|column| {
+                        if let Some(column) = column {
+                            format!("{column:?}")
+                        } else {
+                            // 8 empty spaces
+                            "        ".to_string()
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("  ")
             })
