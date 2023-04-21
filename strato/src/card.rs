@@ -411,6 +411,24 @@ mod tests {
     }
 
     #[test]
+    fn can_determine_card_value() {
+        let unflipped = Card::new(5);
+        assert_eq!(unflipped.get_value(), None);
+
+        let mut negative_two = Card::new(-2);
+        negative_two.flip();
+        assert_eq!(negative_two.get_value(), Some(CardValue::NegativeTwo));
+
+        let mut zero = Card::new(0);
+        zero.flip();
+        assert_eq!(zero.get_value(), Some(CardValue::Zero));
+
+        let mut twelve = Card::new(12);
+        twelve.flip();
+        assert_eq!(twelve.get_value(), Some(CardValue::Twelve));
+    }
+
+    #[test]
     fn can_initialize_deck_in_order() {
         let mut deck = Deck::default();
         assert_eq!(deck.draw(), Some(Card::new(12)));
