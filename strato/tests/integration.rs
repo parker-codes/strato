@@ -6,7 +6,7 @@ use std::sync::{
 use strato::{
     self,
     card::Deck,
-    game::{GameEvent, GameStartupError, GameState, StratoGame},
+    game::{GameEvent, GameStartupError, GameState, PlayerTurnError, StratoGame},
     player::{EndAction, StartAction},
 };
 
@@ -178,6 +178,17 @@ fn cant_flip_same_card_twice() {
         },
     );
     assert!(turn.is_err());
+}
+
+#[test]
+fn cant_start_turn_twice() {
+    let (mut game, player_1_id, _) = start_game();
+
+    game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
+        .expect("Couldn't start Player 1's turn");
+    let result = game.start_player_turn(&player_1_id, StartAction::DrawFromDeck);
+
+    assert_eq!(result.unwrap_err(), PlayerTurnError::TurnAlreadyStarted);
 }
 
 #[test]

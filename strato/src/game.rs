@@ -26,6 +26,8 @@ pub enum GameStartupError {
 pub enum PlayerTurnError {
     #[error("Couldn't find a player with that ID.")]
     PlayerDoesntExist,
+    #[error("You can't start your turn when it is already started.")]
+    TurnAlreadyStarted,
     #[error("You must start turn before you can end it.")]
     TurnNotStarted,
     #[error("It is not your turn.")]
@@ -161,7 +163,9 @@ impl<'s> StratoGame<'s> {
 
         let player = &mut self.context.players[player_idx];
 
-        // TODO: handle TurnAlreadyStarted
+        if player.holding().is_some() {
+            return Err(PlayerTurnError::TurnAlreadyStarted);
+        }
 
         match action {
             StartAction::DrawFromDeck => {
