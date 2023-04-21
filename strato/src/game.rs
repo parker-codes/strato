@@ -266,6 +266,10 @@ impl<'s> StratoGame<'s> {
             }
         }
 
+        // TODO: if all cards in updated column match, remove column
+
+        // TODO: if all cards are flipped, begin final round
+
         self.advance_player_turn();
 
         Ok(())
