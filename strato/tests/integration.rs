@@ -138,14 +138,14 @@ fn a_player_can_take_and_swap() {
 
 #[test]
 fn cant_flip_same_card_twice() {
-    let (mut game, player_1_id, _) = start_game();
+    let (mut game, player_1_id, player_2_id) = start_game();
 
     const ROW: usize = 0;
     const COLUMN: usize = 1;
 
     // First turn
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start Player 1's turn");
     game.end_player_turn(
         &player_1_id,
         EndAction::Flip {
@@ -153,11 +153,23 @@ fn cant_flip_same_card_twice() {
             column: COLUMN,
         },
     )
-    .expect("Couldn't end turn");
+    .expect("Couldn't end Player 1's turn");
+
+    // Other player's turn
+    game.start_player_turn(&player_2_id, StartAction::DrawFromDeck)
+        .expect("Couldn't start Player 2's turn");
+    game.end_player_turn(
+        &player_2_id,
+        EndAction::Flip {
+            row: ROW,
+            column: COLUMN,
+        },
+    )
+    .expect("Couldn't end Player 2's turn");
 
     // Second turn
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start Player 1's second turn");
     let turn = game.end_player_turn(
         &player_1_id,
         EndAction::Flip {
@@ -177,30 +189,30 @@ fn multiple_players_session_1() {
 
     // Cassie first
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start Cassie's turn");
     game.end_player_turn(&cassie_id, EndAction::Flip { row: 1, column: 2 })
-        .expect("Couldn't end turn");
+        .expect("Couldn't end Cassie's turn");
     assert_eq!(game.context.discard_pile.size(), 2);
 
     // James next
     game.start_player_turn(&james_id, StartAction::TakeFromDiscardPile)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start James's turn");
     game.end_player_turn(&james_id, EndAction::Swap { row: 2, column: 2 })
-        .expect("Couldn't end turn");
+        .expect("Couldn't end James's turn");
     assert_eq!(game.context.discard_pile.size(), 2); // hasn't changed because this was taken from discard pile
 
     // Then Cassie again
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start Cassie's 2nd turn");
     game.end_player_turn(&cassie_id, EndAction::Swap { row: 2, column: 3 })
-        .expect("Couldn't end turn");
+        .expect("Couldn't end Cassie's 2nd turn");
     assert_eq!(game.context.discard_pile.size(), 3);
 
     // Then James again
     game.start_player_turn(&james_id, StartAction::DrawFromDeck)
-        .expect("Couldn't start turn");
+        .expect("Couldn't start James's 2nd turn");
     game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
-        .expect("Couldn't end turn");
+        .expect("Couldn't end James's 2nd turn");
     assert_eq!(game.context.discard_pile.size(), 4);
 
     let cassie = &game.get_player(&cassie_id).unwrap();
