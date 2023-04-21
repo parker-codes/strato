@@ -336,6 +336,16 @@ impl PlayerSpread {
             .collect::<Vec<_>>()
             .len()
     }
+
+    pub fn flipped_cards(&self) -> usize {
+        self.0
+            .iter()
+            .flatten()
+            .filter(|c| c.is_some())
+            .filter(|c| c.as_ref().unwrap().is_flipped())
+            .collect::<Vec<_>>()
+            .len()
+    }
 }
 
 impl std::fmt::Debug for PlayerSpread {
@@ -439,5 +449,36 @@ mod tests {
         let snapshot = deck.clone();
         deck.shuffle();
         assert_ne!(deck, snapshot);
+    }
+
+    fn init_player_spread() -> PlayerSpread {
+        let mut deck = Deck::default();
+        deck.shuffle();
+
+        let mut spread = PlayerSpread::new();
+
+        for row in 0..3 {
+            for column in 0..4 {
+                let card = deck.draw().unwrap();
+                spread.place_at(card, row, column).unwrap();
+            }
+        }
+
+        spread
+    }
+
+    #[test]
+    fn a_player_spread_can_provide_counts() {
+        let mut spread = init_player_spread();
+
+        assert_eq!(spread.flipped_cards(), 0);
+        assert_eq!(spread.active_columns(), 4);
+
+        spread.flip_at(0, 0).unwrap();
+        spread.flip_at(1, 0).unwrap();
+        spread.flip_at(2, 0).unwrap();
+
+        assert_eq!(spread.flipped_cards(), 3);
+        // assert_eq!(spread.active_columns(), 3); // TODO: fix
     }
 }

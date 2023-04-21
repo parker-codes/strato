@@ -177,10 +177,19 @@ impl<'s> StratoGame<'s> {
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
         // TODO: check to make sure they have 0 or 1 cards flipped
+        // TODO: add test for this error
 
         player.spread.flip_at(row, column)?;
 
-        // TODO: if all players have 2 cards flipped, transition to Active state
+        // TODO: add tests for this transition
+        let all_players_have_two_cards_flipped = self
+            .context
+            .players
+            .iter()
+            .all(|p| p.spread.flipped_cards() == 2);
+        if all_players_have_two_cards_flipped {
+            self.update_state(GameState::Active);
+        }
 
         Ok(())
     }
