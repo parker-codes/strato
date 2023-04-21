@@ -157,13 +157,13 @@ impl<'s> StratoGame<'s> {
             .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
-        let player = &mut self.context.players[player_idx];
-
         if let Some(current_player_idx) = self.context.current_player_idx {
             if player_idx != current_player_idx {
                 return Err(PlayerTurnError::NotYourTurn);
             }
         }
+
+        let player = &mut self.context.players[player_idx];
 
         // TODO: handle TurnAlreadyStarted
 
@@ -199,13 +199,13 @@ impl<'s> StratoGame<'s> {
             .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
-        let player = &mut self.context.players[player_idx];
-
         if let Some(current_player_idx) = self.context.current_player_idx {
             if player_idx != current_player_idx {
                 return Err(PlayerTurnError::NotYourTurn);
             }
         }
+
+        let player = &mut self.context.players[player_idx];
 
         let card_from_hand = player.release().ok_or(PlayerTurnError::TurnNotStarted)?;
 
