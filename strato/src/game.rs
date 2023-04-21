@@ -157,11 +157,7 @@ impl<'s> StratoGame<'s> {
             .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
-        if let Some(current_player_idx) = self.context.current_player_idx {
-            if player_idx != current_player_idx {
-                return Err(PlayerTurnError::NotYourTurn);
-            }
-        }
+        self.check_if_player_turn(player_idx)?;
 
         let player = &mut self.context.players[player_idx];
 
@@ -199,11 +195,7 @@ impl<'s> StratoGame<'s> {
             .position(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
-        if let Some(current_player_idx) = self.context.current_player_idx {
-            if player_idx != current_player_idx {
-                return Err(PlayerTurnError::NotYourTurn);
-            }
-        }
+        self.check_if_player_turn(player_idx)?;
 
         let player = &mut self.context.players[player_idx];
 
@@ -221,16 +213,26 @@ impl<'s> StratoGame<'s> {
             }
         }
 
-        self.change_to_next_player();
+        self.advance_player_turn();
 
         Ok(())
     }
 
-    fn change_to_next_player(&mut self) {
+    fn advance_player_turn(&mut self) {
         if let Some(current_player_idx) = self.context.current_player_idx {
             self.context.current_player_idx =
                 Some((current_player_idx + 1) % self.context.players.len());
         }
+    }
+
+    fn check_if_player_turn(&self, player_idx: usize) -> Result<(), PlayerTurnError> {
+        if let Some(current_player_idx) = self.context.current_player_idx {
+            if player_idx != current_player_idx {
+                return Err(PlayerTurnError::NotYourTurn);
+            }
+        }
+
+        Ok(())
     }
 }
 
