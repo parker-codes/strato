@@ -345,6 +345,15 @@ impl PlayerSpread {
             .filter(|c| c.as_ref().unwrap().is_flipped())
             .count()
     }
+    pub fn score(&self) -> i32 {
+        self.0
+            .iter()
+            .flatten()
+            .filter(|c| c.is_some())
+            .filter(|c| c.as_ref().unwrap().is_flipped())
+            .map(|c| c.as_ref().unwrap().value as i32)
+            .sum()
+    }
 }
 
 impl std::fmt::Debug for PlayerSpread {
@@ -485,5 +494,11 @@ mod tests {
 
         assert_eq!(spread.flipped_cards(), 3);
         // assert_eq!(spread.active_columns(), 3); // TODO: fix
+    }
+
+    #[test]
+    fn a_filled_but_unflipped_player_spread_has_a_score_of_0() {
+        let spread = init_player_spread();
+        assert_eq!(spread.score(), 0);
     }
 }
