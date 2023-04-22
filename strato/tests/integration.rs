@@ -320,6 +320,10 @@ fn can_flip_to_determine_who_is_first() {
         result.unwrap_err(),
         PlayerTurnError::NotDeterminingFirstPlayer
     );
+
+    let current_player_idx = game.context.current_player_idx;
+    assert!(current_player_idx.is_some());
+    assert!((0..=2).contains(&current_player_idx.unwrap()));
 }
 
 #[test]

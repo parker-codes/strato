@@ -184,12 +184,22 @@ impl<'s> StratoGame<'s> {
 
         player.spread.flip_at(row, column)?;
 
+        // TODO: extract all of this into a separate method?
         let all_players_have_two_cards_flipped = self
             .context
             .players
             .iter()
             .all(|p| p.spread.flipped_cards() == 2);
         if all_players_have_two_cards_flipped {
+            let highest_score_idx = self
+                .context
+                .players
+                .iter()
+                .enumerate()
+                .max_by_key(|(_, p)| p.spread.score())
+                .map(|(idx, _)| idx)
+                .unwrap();
+            self.context.current_player_idx = Some(highest_score_idx);
             self.update_state(GameState::Active);
         }
 
