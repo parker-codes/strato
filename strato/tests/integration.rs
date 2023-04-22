@@ -216,7 +216,12 @@ fn multiple_players_session_1() {
     let mut game = StratoGame::new();
     let cassie_id = game.add_player("Cassie").unwrap();
     let james_id = game.add_player("James").unwrap();
-    game.start().unwrap();
+    game.start_with_options(GameOptions {
+        first_player_idx: Some(0),
+    })
+    .unwrap();
+
+    assert_eq!(game.state, GameState::Active);
 
     // Cassie first
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
@@ -285,4 +290,51 @@ fn can_subscribe_to_state_changes() {
         .expect("Couldn't start turn");
 
     assert_eq!(callback_triggered.load(Ordering::Relaxed), true);
+}
+
+#[test]
+fn can_flip_to_determine_who_is_first() {
+    let mut game = StratoGame::new();
+    let cassie_id = game.add_player("Cassie").unwrap();
+    let james_id = game.add_player("James").unwrap();
+    game.start().unwrap();
+
+    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+
+    game.player_flip_to_determine_who_is_first(&cassie_id, 0, 0)
+        .unwrap();
+    game.player_flip_to_determine_who_is_first(&cassie_id, 1, 0)
+        .unwrap();
+
+    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+
+    game.player_flip_to_determine_who_is_first(&james_id, 2, 1)
+        .unwrap();
+    game.player_flip_to_determine_who_is_first(&james_id, 1, 3)
+        .unwrap();
+
+    assert_eq!(game.state, GameState::Active);
+
+    let result = game.player_flip_to_determine_who_is_first(&cassie_id, 2, 0);
+    assert_eq!(
+        result.unwrap_err(),
+        PlayerTurnError::NotDeterminingFirstPlayer
+    );
+}
+
+#[test]
+fn cant_flip_too_many_cards_to_determine_first_player() {
+    let mut game = StratoGame::new();
+    let cassie_id = game.add_player("Cassie").unwrap();
+    game.add_player("James").unwrap();
+    game.start().unwrap();
+
+    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+
+    game.player_flip_to_determine_who_is_first(&cassie_id, 0, 0)
+        .unwrap();
+    game.player_flip_to_determine_who_is_first(&cassie_id, 1, 0)
+        .unwrap();
+    let result = game.player_flip_to_determine_who_is_first(&cassie_id, 2, 0);
+    assert_eq!(result.unwrap_err(), PlayerTurnError::TooManyCardsFlipped);
 }

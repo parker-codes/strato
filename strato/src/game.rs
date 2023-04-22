@@ -184,7 +184,6 @@ impl<'s> StratoGame<'s> {
 
         player.spread.flip_at(row, column)?;
 
-        // TODO: add tests for this transition
         let all_players_have_two_cards_flipped = self
             .context
             .players
