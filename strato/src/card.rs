@@ -514,7 +514,6 @@ mod tests {
         spread.flip_at(2, 0).unwrap();
 
         assert_eq!(spread.flipped_cards(), 3);
-        // assert_eq!(spread.active_columns(), 3); // TODO: fix
     }
 
     #[test]
