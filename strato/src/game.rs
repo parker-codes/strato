@@ -28,6 +28,8 @@ pub enum PlayerTurnError {
     PlayerDoesntExist,
     #[error("The first player has already been determined.")]
     NotDeterminingFirstPlayer,
+    #[error("You have already flipped your cards to determine who goes first.")]
+    TooManyCardsFlipped,
     #[error("You can't start your turn when it is already started.")]
     TurnAlreadyStarted,
     #[error("You must start turn before you can end it.")]
@@ -176,8 +178,9 @@ impl<'s> StratoGame<'s> {
             .find(|p| p.id() == player_id.clone().into())
             .ok_or(PlayerTurnError::PlayerDoesntExist)?;
 
-        // TODO: check to make sure they have 0 or 1 cards flipped
-        // TODO: add test for this error
+        if player.spread.flipped_cards() >= 2 {
+            return Err(PlayerTurnError::TooManyCardsFlipped);
+        }
 
         player.spread.flip_at(row, column)?;
 
