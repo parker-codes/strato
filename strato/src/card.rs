@@ -43,7 +43,7 @@ impl std::fmt::Debug for Card {
         write!(
             f,
             "[{flipped_marker}{: ^4}{flipped_marker}]",
-            self.value as i32
+            i32::from(self.value)
         )
     }
 }
@@ -345,13 +345,14 @@ impl PlayerSpread {
             .filter(|c| c.as_ref().unwrap().is_flipped())
             .count()
     }
+
     pub fn score(&self) -> i32 {
         self.0
             .iter()
             .flatten()
             .filter(|c| c.is_some())
             .filter(|c| c.as_ref().unwrap().is_flipped())
-            .map(|c| c.as_ref().unwrap().value as i32)
+            .map(|c| i32::from(c.as_ref().unwrap().value))
             .sum()
     }
 }
@@ -394,6 +395,8 @@ mod tests {
         assert_eq!(i32::from(CardValue::NegativeTwo), -2);
         assert_eq!(i32::from(CardValue::Zero), 0);
         assert_eq!(i32::from(CardValue::Ten), 10);
+
+        // NOTE: We cannot cast as i32 or else it turns into 0
     }
 
     #[test]
@@ -518,5 +521,44 @@ mod tests {
     fn a_filled_but_unflipped_player_spread_has_a_score_of_0() {
         let spread = init_player_spread();
         assert_eq!(spread.score(), 0);
+    }
+
+    #[test]
+    fn a_player_spread_can_provide_a_score_1() {
+        let mut spread = init_player_spread();
+        assert_eq!(spread.score(), 0);
+
+        let (row, column) = (1, 1);
+        spread.take_from(row, column).unwrap(); // clear existing card
+
+        let negative_two = Card::new(-2);
+        spread.place_at(negative_two, row, column).unwrap(); // insert card
+        spread.flip_at(row, column).unwrap(); // flip card
+
+        assert_eq!(spread.score(), -2);
+    }
+
+    #[test]
+    fn a_player_spread_can_provide_a_score_2() {
+        let mut spread = PlayerSpread::new();
+        assert_eq!(spread.score(), 0);
+
+        let mut one = Card::new(1);
+        one.flip();
+        spread.place_at(one, 0, 0).unwrap();
+
+        let mut five = Card::new(5);
+        five.flip();
+        spread.place_at(five, 1, 0).unwrap();
+
+        let mut ten = Card::new(10);
+        ten.flip();
+        spread.place_at(ten, 2, 1).unwrap();
+
+        let mut negative_one = Card::new(-1);
+        negative_one.flip();
+        spread.place_at(negative_one, 0, 3).unwrap();
+
+        assert_eq!(spread.score(), 15);
     }
 }
