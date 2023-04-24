@@ -337,6 +337,38 @@ impl PlayerSpread {
             .len()
     }
 
+    /// If the column has matching cards, remove it.
+    // TODO: Write tests for this
+    pub fn remove_column_if_matches(&mut self, column: usize) -> Result<(), SpreadActionError> {
+        let values = self
+            .0
+            .iter()
+            .map(|row| row.get(column))
+            .flatten()
+            .collect::<Vec<_>>();
+
+        // If any of the values are None, then the column is not full.
+        if values.iter().any(|c| c.is_none()) {
+            return Ok(());
+        }
+        // If any of the values are not flipped, then the column is not ready.
+        if values.iter().any(|c| !c.unwrap().is_flipped()) {
+            return Ok(());
+        }
+
+        let first_value = values.iter().next().unwrap().unwrap();
+        let column_matches = values.iter().all(|c| c.unwrap() == first_value);
+
+        if column_matches {
+            // Remove column
+            for row in self.0.iter_mut() {
+                row[column] = None;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn flipped_cards(&self) -> usize {
         self.0
             .iter()

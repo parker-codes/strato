@@ -287,8 +287,15 @@ impl<'s> StratoGame<'s> {
         }
 
         // TODO: if all cards in updated column match, remove column
+        match action {
+            EndAction::Swap { column, .. } | EndAction::Flip { column, .. } => {
+                player.spread.remove_column_if_matches(column)?;
+            }
+        }
 
-        // TODO: if all cards are flipped, begin final round
+        // TODO: if all current player's cards are flipped, begin final round
+
+        // TODO: if all cards in game are flipped, end game
 
         self.advance_player_turn();
 
