@@ -30,6 +30,8 @@ pub enum PlayerTurnError {
     NotDeterminingFirstPlayer,
     #[error("You have already flipped your cards to determine who goes first.")]
     TooManyCardsFlipped,
+    #[error("The game has not started yet.")]
+    GameNotStarted,
     #[error("You can't start your turn when it is already started.")]
     TurnAlreadyStarted,
     #[error("You must start turn before you can end it.")]
@@ -219,7 +221,9 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: StartAction,
     ) -> Result<(), PlayerTurnError> {
-        // TODO: Make sure we're in the right state
+        if self.state != GameState::Active {
+            return Err(PlayerTurnError::GameNotStarted);
+        }
 
         let player_idx = self
             .context
@@ -259,7 +263,9 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: EndAction,
     ) -> Result<(), PlayerTurnError> {
-        // TODO: Make sure we're in the right state
+        if self.state != GameState::Active {
+            return Err(PlayerTurnError::GameNotStarted);
+        }
 
         let player_idx = self
             .context
@@ -286,7 +292,6 @@ impl<'s> StratoGame<'s> {
             }
         }
 
-        // TODO: if all cards in updated column match, remove column
         match action {
             EndAction::Swap { column, .. } | EndAction::Flip { column, .. } => {
                 player.spread.remove_column_if_matches(column)?;

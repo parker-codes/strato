@@ -284,7 +284,10 @@ fn can_subscribe_to_state_changes() {
 
     let player_1_id = game.add_player("Parker").unwrap();
     let _ = game.add_player("Trevor").unwrap();
-    game.start().unwrap();
+    game.start_with_options(GameOptions {
+        first_player_idx: Some(0),
+    })
+    .unwrap();
 
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
