@@ -385,6 +385,15 @@ impl PlayerSpread {
         self.remaining_cards().all(|c| c.is_flipped())
     }
 
+    /// Flip all remaining cards. This is used at the end of the game.
+    pub fn flip_all(&mut self) {
+        self.0
+            .iter_mut()
+            .flatten()
+            .filter(|c| c.is_some())
+            .for_each(|c| c.as_mut().unwrap().flip());
+    }
+
     pub fn score(&self) -> i32 {
         self.0
             .iter()

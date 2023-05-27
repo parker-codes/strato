@@ -144,6 +144,29 @@ impl<'s> StratoGame<'s> {
         Ok(())
     }
 
+    fn handle_end(&mut self) {
+        if self.state != GameState::Ended {
+            return;
+        }
+
+        for player in self.context.players.iter_mut() {
+            player.spread.flip_all();
+        }
+
+        let winner_idx = self
+            .context
+            .players
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, p)| p.spread.score())
+            .map(|(idx, _)| idx)
+            .unwrap();
+
+        // TODO: handle case where there is a tie
+
+        self.context.winner_idx = Some(winner_idx);
+    }
+
     fn deal_cards_to_players(&mut self) -> Result<(), GameStartupError> {
         if self.state == GameState::Startup {
             for player in self.context.players.iter_mut() {
@@ -301,10 +324,10 @@ impl<'s> StratoGame<'s> {
         }
 
         if self.state == GameState::LastRound {
+            // TODO: make this cleaner
             if player_idx == last_player_idx(players_count, self.context.finisher_idx.unwrap()) {
-                // TODO: We don't determine the winner here. We need to flip all remaining cards, etc first.
-                self.context.winner_idx = Some(self.determine_winner());
                 self.update_state(GameState::Ended);
+                self.handle_end();
                 return Ok(());
             }
         }
@@ -342,16 +365,6 @@ impl<'s> StratoGame<'s> {
         }
 
         Ok(())
-    }
-
-    fn determine_winner(&self) -> usize {
-        self.context
-            .players
-            .iter()
-            .enumerate()
-            .max_by_key(|(_, p)| p.spread.score())
-            .map(|(idx, _)| idx)
-            .unwrap()
     }
 }
 
