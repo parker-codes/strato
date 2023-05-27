@@ -369,13 +369,20 @@ impl PlayerSpread {
         Ok(())
     }
 
-    pub fn flipped_cards(&self) -> usize {
+    pub fn remaining_cards(&self) -> impl Iterator<Item = &Card> {
         self.0
             .iter()
             .flatten()
             .filter(|c| c.is_some())
-            .filter(|c| c.as_ref().unwrap().is_flipped())
-            .count()
+            .map(|c| c.as_ref().unwrap())
+    }
+
+    pub fn flipped_cards(&self) -> usize {
+        self.remaining_cards().filter(|c| c.is_flipped()).count()
+    }
+
+    pub fn is_all_flipped(&self) -> bool {
+        self.remaining_cards().all(|c| c.is_flipped())
     }
 
     pub fn score(&self) -> i32 {

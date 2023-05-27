@@ -276,7 +276,9 @@ impl<'s> StratoGame<'s> {
 
         self.check_if_player_turn(player_idx)?;
 
-        let player = &mut self.context.players[player_idx];
+        let players = &mut self.context.players;
+        let players_count = players.len();
+        let player = players.get_mut(player_idx).unwrap();
 
         let card_from_hand = player.release().ok_or(PlayerTurnError::TurnNotStarted)?;
 
@@ -298,13 +300,31 @@ impl<'s> StratoGame<'s> {
             }
         }
 
-        // TODO: if all current player's cards are flipped, begin final round
+        if self.state == GameState::LastRound {
+            if player_idx == last_player_idx(players_count, self.context.finisher_idx.unwrap()) {
+                // TODO: We don't determine the winner here. We need to flip all remaining cards, etc first.
+                self.context.winner_idx = Some(self.determine_winner());
+                self.update_state(GameState::Ended);
+                return Ok(());
+            }
+        }
 
-        // TODO: if all cards in game are flipped, end game
+        if self.state == GameState::Active && player.spread.is_all_flipped() {
+            self.context.finisher_idx = Some(player_idx);
+            self.update_state(GameState::LastRound);
+        }
+
+        if player_idx == self.context.players.len() {
+            self.advance_round();
+        }
 
         self.advance_player_turn();
 
         Ok(())
+    }
+
+    fn advance_round(&mut self) {
+        self.context.round += 1;
     }
 
     fn advance_player_turn(&mut self) {
@@ -323,16 +343,32 @@ impl<'s> StratoGame<'s> {
 
         Ok(())
     }
+
+    fn determine_winner(&self) -> usize {
+        self.context
+            .players
+            .iter()
+            .enumerate()
+            .max_by_key(|(_, p)| p.spread.score())
+            .map(|(idx, _)| idx)
+            .unwrap()
+    }
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub enum GameState {
+    /// In the waiting room for players to join.
     #[default]
     WaitingForPlayers,
+    /// Initializing game state.
     Startup,
+    /// Optional state: Each person flips 2 cards; highest score goes first.
     DetermineFirstPlayer,
+    /// Game is ongoing.
     Active,
-    LastRound, // TODO: everyone gets one last go
+    /// Everyone after the finisher gets one last turn.
+    LastRound,
+    /// Game is over!
     Ended,
 }
 
@@ -342,6 +378,13 @@ pub struct GameContext {
     pub current_player_idx: Option<usize>,
     pub deck: Deck,
     pub discard_pile: DiscardPile,
+
+    /// How many times the full players list has been iterated through.
+    round: usize,
+    /// Index of the player who finished their spread first, starting the LastRound.
+    finisher_idx: Option<usize>,
+    /// Index of the player who won the game.
+    winner_idx: Option<usize>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -366,4 +409,12 @@ impl<'s> Subscriber<'s> {
 #[derive(Default, Debug)]
 pub struct GameOptions {
     pub first_player_idx: Option<usize>,
+}
+
+fn last_player_idx(players_count: usize, finisher_idx: usize) -> usize {
+    if finisher_idx == 0 {
+        players_count - 1
+    } else {
+        finisher_idx - 1
+    }
 }
