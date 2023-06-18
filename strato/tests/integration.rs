@@ -24,15 +24,15 @@ fn start_game_with_order() -> (StratoGame<'static>, String, String) {
 #[test]
 fn a_game_can_be_initialized() {
     let game = StratoGame::new();
-    assert_eq!(game.state, GameState::WaitingForPlayers);
-    assert_eq!(game.context.deck.size(), Deck::FULL_SIZE);
+    assert!(game.state_matches(GameState::WaitingForPlayers));
+    assert_eq!(game.context.lock().unwrap().deck.size(), Deck::FULL_SIZE);
 }
 
 #[test]
 fn players_can_be_added() {
     let mut game = StratoGame::new();
     game.add_player("Parker").unwrap();
-    assert_eq!(game.state, GameState::WaitingForPlayers);
+    assert!(game.state_matches(GameState::WaitingForPlayers));
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn a_game_can_be_started() {
     game.add_player("Trevor").unwrap();
     let result = game.start();
     assert!(result.is_ok());
-    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+    assert!(game.state_matches(GameState::DetermineFirstPlayer));
 }
 
 #[test]
@@ -50,13 +50,17 @@ fn a_game_can_be_started_with_specific_start_player() {
     let previous_winner_idx = 1;
 
     let mut game = StratoGame::new();
+    println!("Game created");
     game.add_player("Parker").unwrap();
+    println!("Parker added");
     game.add_player("Trevor").unwrap();
+    println!("Trevor added");
     let result = game.start_with_options(GameOptions {
         first_player_idx: Some(previous_winner_idx),
     });
+    println!("Game started with Trevor as first player");
     assert!(result.is_ok());
-    assert_eq!(game.state, GameState::Active);
+    assert!(game.state_matches(GameState::Active));
 }
 
 #[test]
@@ -64,7 +68,7 @@ fn cant_start_without_players() {
     let mut game = StratoGame::new();
     let result = game.start();
     assert_eq!(result.unwrap_err(), GameStartupError::NotEnoughPlayers);
-    assert_eq!(game.state, GameState::WaitingForPlayers);
+    assert!(game.state_matches(GameState::WaitingForPlayers));
 }
 
 #[test]
@@ -83,20 +87,23 @@ fn a_started_game_deals_cards_to_players() {
         12
     );
     let cards_used = (12 * 2) /* for 2 players */ + 1 /* for discard init */;
-    assert_eq!(game.context.deck.size(), Deck::FULL_SIZE - cards_used);
+    assert_eq!(
+        game.context.lock().unwrap().deck.size(),
+        Deck::FULL_SIZE - cards_used
+    );
 }
 
 #[test]
 fn starting_multiple_times_is_inconsequential() {
     let (mut game, _, _) = start_game_with_order();
-    let deck_snapshot = game.context.deck.clone();
+    let deck_snapshot = game.context.lock().unwrap().deck.clone();
     assert!(game.start().is_err());
     assert_eq!(
         game.start().unwrap_err(),
         GameStartupError::GameAlreadyStarted
     );
-    assert_eq!(game.state, GameState::Active);
-    assert_eq!(deck_snapshot, game.context.deck);
+    assert!(game.state_matches(GameState::Active));
+    assert_eq!(deck_snapshot, game.context.lock().unwrap().deck);
 }
 
 #[test]
@@ -106,7 +113,10 @@ fn can_list_players() {
     let player_2_id = game.add_player("Lexi").unwrap();
     let player_1 = game.get_player(player_1_id).unwrap();
     let player_2 = game.get_player(player_2_id).unwrap();
-    assert!(game.list_players().iter().eq(vec![player_1, player_2]));
+    assert!(game
+        .list_players()
+        .iter()
+        .eq(vec![player_1, player_2].iter()));
 }
 
 #[test]
@@ -118,7 +128,7 @@ fn cant_change_players_after_game_starts() {
         first_player_idx: Some(0),
     })
     .unwrap();
-    assert_eq!(game.state, GameState::Active);
+    assert!(game.state_matches(GameState::Active));
 
     let player_3_id = game.add_player("Trevor");
     assert_eq!(game.list_players().len(), 2);
@@ -141,7 +151,7 @@ fn a_player_can_draw_and_flip() {
     game.end_player_turn(&player_1_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end turn");
     assert!(game.get_player(&player_1_id).unwrap().holding().is_none());
-    assert_eq!(game.context.discard_pile.size(), 2); // discard init contains 1 already
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 2); // discard init contains 1 already
 }
 
 #[test]
@@ -153,7 +163,7 @@ fn a_player_can_take_and_swap() {
     game.end_player_turn(&player_1_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end turn");
     assert!(game.get_player(&player_1_id).unwrap().holding().is_none());
-    assert_eq!(game.context.discard_pile.size(), 1); // discard init contains 1 already
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 1); // discard init contains 1 already
 }
 
 #[test]
@@ -221,35 +231,35 @@ fn multiple_players_session_1() {
     })
     .unwrap();
 
-    assert_eq!(game.state, GameState::Active);
+    assert!(game.state_matches(GameState::Active));
 
     // Cassie first
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
         .expect("Couldn't start Cassie's turn");
     game.end_player_turn(&cassie_id, EndAction::Flip { row: 1, column: 2 })
         .expect("Couldn't end Cassie's turn");
-    assert_eq!(game.context.discard_pile.size(), 2);
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 2);
 
     // James next
     game.start_player_turn(&james_id, StartAction::TakeFromDiscardPile)
         .expect("Couldn't start James's turn");
     game.end_player_turn(&james_id, EndAction::Swap { row: 2, column: 2 })
         .expect("Couldn't end James's turn");
-    assert_eq!(game.context.discard_pile.size(), 2); // hasn't changed because this was taken from discard pile
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 2); // hasn't changed because this was taken from discard pile
 
     // Then Cassie again
     game.start_player_turn(&cassie_id, StartAction::DrawFromDeck)
         .expect("Couldn't start Cassie's 2nd turn");
     game.end_player_turn(&cassie_id, EndAction::Swap { row: 2, column: 3 })
         .expect("Couldn't end Cassie's 2nd turn");
-    assert_eq!(game.context.discard_pile.size(), 3);
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 3);
 
     // Then James again
     game.start_player_turn(&james_id, StartAction::DrawFromDeck)
         .expect("Couldn't start James's 2nd turn");
     game.end_player_turn(&james_id, EndAction::Flip { row: 0, column: 0 })
         .expect("Couldn't end James's 2nd turn");
-    assert_eq!(game.context.discard_pile.size(), 4);
+    assert_eq!(game.context.lock().unwrap().discard_pile.size(), 4);
 
     let cassie = &game.get_player(&cassie_id).unwrap();
     let flipped_over_in_spread = cassie
@@ -302,21 +312,21 @@ fn can_flip_to_determine_who_is_first() {
     let james_id = game.add_player("James").unwrap();
     game.start().unwrap();
 
-    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+    assert!(game.state_matches(GameState::DetermineFirstPlayer));
 
     game.player_flip_to_determine_who_is_first(&cassie_id, 0, 0)
         .unwrap();
     game.player_flip_to_determine_who_is_first(&cassie_id, 1, 0)
         .unwrap();
 
-    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+    assert!(game.state_matches(GameState::DetermineFirstPlayer));
 
     game.player_flip_to_determine_who_is_first(&james_id, 2, 1)
         .unwrap();
     game.player_flip_to_determine_who_is_first(&james_id, 1, 3)
         .unwrap();
 
-    assert_eq!(game.state, GameState::Active);
+    assert!(game.state_matches(GameState::Active));
 
     let result = game.player_flip_to_determine_who_is_first(&cassie_id, 2, 0);
     assert_eq!(
@@ -324,7 +334,7 @@ fn can_flip_to_determine_who_is_first() {
         PlayerTurnError::NotDeterminingFirstPlayer
     );
 
-    let current_player_idx = game.context.current_player_idx;
+    let current_player_idx = game.context.lock().unwrap().current_player_idx;
     assert!(current_player_idx.is_some());
     assert!((0..=2).contains(&current_player_idx.unwrap()));
 }
@@ -336,7 +346,7 @@ fn cant_flip_too_many_cards_to_determine_first_player() {
     game.add_player("James").unwrap();
     game.start().unwrap();
 
-    assert_eq!(game.state, GameState::DetermineFirstPlayer);
+    assert!(game.state_matches(GameState::DetermineFirstPlayer));
 
     game.player_flip_to_determine_who_is_first(&cassie_id, 0, 0)
         .unwrap();

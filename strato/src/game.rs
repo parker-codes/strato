@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
 use rand::distributions::Alphanumeric;
@@ -50,23 +51,28 @@ pub enum PlayerTurnError {
 
 #[derive(Debug, Clone)]
 pub struct StratoGame<'s> {
-    pub state: GameState,
-    pub context: GameContext,
+    // TODO: change these to Rc<RefCell<>>...
+    pub state: Arc<Mutex<GameState>>,
+    pub context: Arc<Mutex<GameContext>>,
     subscriber: Option<Rc<Subscriber<'s>>>,
 }
 
 impl<'s> StratoGame<'s> {
     pub fn new() -> Self {
         Self {
-            state: GameState::default(),
-            context: GameContext::default(),
+            state: Arc::new(Mutex::new(GameState::default())),
+            context: Arc::new(Mutex::new(GameContext::default())),
             subscriber: None,
         }
     }
 
-    fn update_state(&mut self, state: GameState) {
-        self.state = state;
-        self.notify(GameEvent::StateChange(&self.state));
+    fn update_state(&self, state: GameState) {
+        *self.state.lock().unwrap() = state;
+        self.notify(GameEvent::StateChange(&self.state.lock().unwrap()));
+    }
+
+    pub fn state_matches(&self, state: GameState) -> bool {
+        *self.state.lock().unwrap() == state
     }
 
     pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 's) {
@@ -84,7 +90,7 @@ impl<'s> StratoGame<'s> {
     }
 
     pub fn add_player(&mut self, player_name: &'static str) -> Result<String, GameStartupError> {
-        if self.state == GameState::WaitingForPlayers {
+        if self.state_matches(GameState::WaitingForPlayers) {
             let player_id = rand::thread_rng()
                 .sample_iter(&Alphanumeric)
                 .take(30)
@@ -92,7 +98,7 @@ impl<'s> StratoGame<'s> {
                 .collect::<String>();
 
             let player = Player::new(player_id.clone(), player_name);
-            self.context.players.push(player);
+            self.context.lock().unwrap().players.push(player);
 
             Ok(player_id)
         } else {
@@ -101,14 +107,17 @@ impl<'s> StratoGame<'s> {
     }
 
     pub fn list_players(&self) -> Vec<Player> {
-        self.context.players.clone()
+        self.context.lock().unwrap().players.clone()
     }
 
-    pub fn get_player<S: Into<String> + Clone>(&self, player_id: S) -> Option<&Player> {
-        self.context
+    pub fn get_player<S: Into<String> + Clone>(&self, player_id: S) -> Option<Player> {
+        let context = self.context.lock().unwrap();
+        let player = context
             .players
             .iter()
             .find(|p| p.id() == player_id.clone().into())
+            .cloned();
+        player
     }
 
     pub fn start(&mut self) -> Result<(), GameStartupError> {
@@ -120,21 +129,21 @@ impl<'s> StratoGame<'s> {
     }
 
     fn handle_start(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
-        if self.state == GameState::Active {
+        if self.state_matches(GameState::Active) {
             return Err(GameStartupError::GameAlreadyStarted);
-        } else if self.context.players.len() < 2 {
+        } else if self.context.lock().unwrap().players.len() < 2 {
             return Err(GameStartupError::NotEnoughPlayers);
-        } else if self.state == GameState::WaitingForPlayers {
+        } else if self.state_matches(GameState::WaitingForPlayers) {
             self.update_state(GameState::Startup);
 
-            self.context.deck.shuffle();
-            let top_card = self.context.deck.draw().unwrap();
-            self.context.discard_pile.put(top_card);
+            self.context.lock().unwrap().deck.shuffle();
+            let top_card = self.context.lock().unwrap().deck.draw().unwrap();
+            self.context.lock().unwrap().discard_pile.put(top_card);
             // TODO: shuffle player order?
             self.deal_cards_to_players()?;
 
             if let Some(first_player_idx) = options.first_player_idx {
-                self.context.current_player_idx = Some(first_player_idx);
+                self.context.lock().unwrap().current_player_idx = Some(first_player_idx);
                 self.update_state(GameState::Active);
             } else {
                 self.update_state(GameState::DetermineFirstPlayer);
@@ -144,17 +153,19 @@ impl<'s> StratoGame<'s> {
         Ok(())
     }
 
-    fn handle_end(&mut self) {
-        if self.state != GameState::Ended {
+    fn handle_end(&self) {
+        if !self.state_matches(GameState::Ended) {
             return;
         }
 
-        for player in self.context.players.iter_mut() {
+        for player in self.context.lock().unwrap().players.iter_mut() {
             player.spread.flip_all();
         }
 
         let winner_idx = self
             .context
+            .lock()
+            .unwrap()
             .players
             .iter()
             .enumerate()
@@ -164,16 +175,18 @@ impl<'s> StratoGame<'s> {
 
         // TODO: handle case where there is a tie
 
-        self.context.winner_idx = Some(winner_idx);
+        self.context.lock().unwrap().winner_idx = Some(winner_idx);
     }
 
     fn deal_cards_to_players(&mut self) -> Result<(), GameStartupError> {
-        if self.state == GameState::Startup {
-            for player in self.context.players.iter_mut() {
+        if self.state_matches(GameState::Startup) {
+            for player in self.context.lock().unwrap().players.iter_mut() {
                 for row in 0..3 {
                     for column in 0..4 {
                         let card = self
                             .context
+                            .lock()
+                            .unwrap()
                             .deck
                             .draw()
                             .ok_or(GameStartupError::DeckEmpty)?;
@@ -192,12 +205,12 @@ impl<'s> StratoGame<'s> {
         row: usize,
         column: usize,
     ) -> Result<(), PlayerTurnError> {
-        if self.state != GameState::DetermineFirstPlayer {
+        if !self.state_matches(GameState::DetermineFirstPlayer) {
             return Err(PlayerTurnError::NotDeterminingFirstPlayer);
         }
 
-        let player = self
-            .context
+        let mut context = self.context.lock().unwrap();
+        let player = context
             .players
             .iter_mut()
             .find(|p| p.id() == player_id.clone().into())
@@ -210,7 +223,7 @@ impl<'s> StratoGame<'s> {
         player.spread.flip_at(row, column)?;
 
         if let Some(first_player_idx) = self.check_if_first_player_determined() {
-            self.context.current_player_idx = Some(first_player_idx);
+            self.context.lock().unwrap().current_player_idx = Some(first_player_idx);
             self.update_state(GameState::Active);
         }
 
@@ -220,6 +233,8 @@ impl<'s> StratoGame<'s> {
     fn check_if_first_player_determined(&self) -> Option<usize> {
         let all_players_have_two_cards_flipped = self
             .context
+            .lock()
+            .unwrap()
             .players
             .iter()
             .all(|p| p.spread.flipped_cards() == 2);
@@ -227,6 +242,8 @@ impl<'s> StratoGame<'s> {
         if all_players_have_two_cards_flipped {
             let highest_score_idx = self
                 .context
+                .lock()
+                .unwrap()
                 .players
                 .iter()
                 .enumerate()
@@ -244,12 +261,14 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: StartAction,
     ) -> Result<(), PlayerTurnError> {
-        if self.state != GameState::Active {
+        if !self.state_matches(GameState::Active) {
             return Err(PlayerTurnError::GameNotStarted);
         }
 
         let player_idx = self
             .context
+            .lock()
+            .unwrap()
             .players
             .iter()
             .position(|p| p.id() == player_id.clone().into())
@@ -257,7 +276,7 @@ impl<'s> StratoGame<'s> {
 
         self.check_if_player_turn(player_idx)?;
 
-        let player = &mut self.context.players[player_idx];
+        let player = &mut self.context.lock().unwrap().players[player_idx];
 
         if player.holding().is_some() {
             return Err(PlayerTurnError::TurnAlreadyStarted);
@@ -265,12 +284,20 @@ impl<'s> StratoGame<'s> {
 
         match action {
             StartAction::DrawFromDeck => {
-                let card = self.context.deck.draw().ok_or(PlayerTurnError::DeckEmpty)?;
+                let card = self
+                    .context
+                    .lock()
+                    .unwrap()
+                    .deck
+                    .draw()
+                    .ok_or(PlayerTurnError::DeckEmpty)?;
                 player.hold(card)?;
             }
             StartAction::TakeFromDiscardPile => {
                 let card = self
                     .context
+                    .lock()
+                    .unwrap()
                     .discard_pile
                     .take()
                     .ok_or(PlayerTurnError::DiscardPileEmpty)?;
@@ -286,12 +313,14 @@ impl<'s> StratoGame<'s> {
         player_id: S,
         action: EndAction,
     ) -> Result<(), PlayerTurnError> {
-        if self.state != GameState::Active {
+        if !self.state_matches(GameState::Active) {
             return Err(PlayerTurnError::GameNotStarted);
         }
 
         let player_idx = self
             .context
+            .lock()
+            .unwrap()
             .players
             .iter()
             .position(|p| p.id() == player_id.clone().into())
@@ -299,7 +328,7 @@ impl<'s> StratoGame<'s> {
 
         self.check_if_player_turn(player_idx)?;
 
-        let players = &mut self.context.players;
+        let players = &mut self.context.lock().unwrap().players;
         let players_count = players.len();
         let player = players.get_mut(player_idx).unwrap();
 
@@ -309,11 +338,15 @@ impl<'s> StratoGame<'s> {
             EndAction::Swap { row, column } => {
                 let selected_card = player.spread.take_from(row, column)?;
                 player.spread.place_at(card_from_hand, row, column)?;
-                self.context.discard_pile.put(selected_card);
+                self.context.lock().unwrap().discard_pile.put(selected_card);
             }
             EndAction::Flip { row, column } => {
                 player.spread.flip_at(row, column)?;
-                self.context.discard_pile.put(card_from_hand);
+                self.context
+                    .lock()
+                    .unwrap()
+                    .discard_pile
+                    .put(card_from_hand);
             }
         }
 
@@ -323,21 +356,26 @@ impl<'s> StratoGame<'s> {
             }
         }
 
-        if self.state == GameState::LastRound {
+        if self.state_matches(GameState::LastRound) {
             // TODO: make this cleaner
-            if player_idx == last_player_idx(players_count, self.context.finisher_idx.unwrap()) {
+            if player_idx
+                == last_player_idx(
+                    players_count,
+                    self.context.lock().unwrap().finisher_idx.unwrap(),
+                )
+            {
                 self.update_state(GameState::Ended);
                 self.handle_end();
                 return Ok(());
             }
         }
 
-        if self.state == GameState::Active && player.spread.is_all_flipped() {
-            self.context.finisher_idx = Some(player_idx);
+        if self.state_matches(GameState::Active) && player.spread.is_all_flipped() {
+            self.context.lock().unwrap().finisher_idx = Some(player_idx);
             self.update_state(GameState::LastRound);
         }
 
-        if player_idx == self.context.players.len() {
+        if player_idx == self.context.lock().unwrap().players.len() {
             self.advance_round();
         }
 
@@ -346,19 +384,19 @@ impl<'s> StratoGame<'s> {
         Ok(())
     }
 
-    fn advance_round(&mut self) {
-        self.context.round += 1;
+    fn advance_round(&self) {
+        self.context.lock().unwrap().round += 1;
     }
 
-    fn advance_player_turn(&mut self) {
-        if let Some(current_player_idx) = self.context.current_player_idx {
-            self.context.current_player_idx =
-                Some((current_player_idx + 1) % self.context.players.len());
+    fn advance_player_turn(&self) {
+        if let Some(current_player_idx) = self.context.lock().unwrap().current_player_idx {
+            self.context.lock().unwrap().current_player_idx =
+                Some((current_player_idx + 1) % self.context.lock().unwrap().players.len());
         }
     }
 
     fn check_if_player_turn(&self, player_idx: usize) -> Result<(), PlayerTurnError> {
-        if let Some(current_player_idx) = self.context.current_player_idx {
+        if let Some(current_player_idx) = self.context.lock().unwrap().current_player_idx {
             if player_idx != current_player_idx {
                 return Err(PlayerTurnError::NotYourTurn);
             }
@@ -385,7 +423,7 @@ pub enum GameState {
     Ended,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameContext {
     pub players: Vec<Player>,
     pub current_player_idx: Option<usize>,
