@@ -1,5 +1,7 @@
 use crate::card::{Card, PlayerSpread};
 use anyhow::Result;
+use rand::distributions::Alphanumeric;
+use rand::Rng;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -10,11 +12,8 @@ pub enum PlayerActionError {
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct Player {
-    // TODO: Use private key for auth?
     /// A generated identifier.
     id: String,
-    /// The player's chosen name or alias.
-    name: String,
     /// The card the user has in-hand after drawing from the deck or taking from the discard pile.
     holding: Option<Card>,
     /// The grid of cards that each player has. Starts as 4x3 and may shrink as columns match.
@@ -22,10 +21,9 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: String, name: &str) -> Self {
+    pub fn new(id: &str) -> Self {
         Self {
-            id,
-            name: name.to_string(),
+            id: id.to_string(),
             holding: None,
             spread: PlayerSpread::new(),
         }
@@ -33,10 +31,6 @@ impl Player {
 
     pub fn id(&self) -> String {
         self.id.clone()
-    }
-
-    pub fn name(&self) -> String {
-        self.name.to_string()
     }
 
     /// View what the player is holding, if anything.
@@ -77,4 +71,12 @@ pub enum EndAction {
     Swap { row: usize, column: usize },
     /// Row and Column are 0-based.
     Flip { row: usize, column: usize },
+}
+
+pub fn generate_player_id() -> String {
+    rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect::<String>()
 }

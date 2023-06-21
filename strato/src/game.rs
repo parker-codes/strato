@@ -1,8 +1,6 @@
 use std::rc::Rc;
 
 use anyhow::Result;
-use rand::distributions::Alphanumeric;
-use rand::Rng;
 use thiserror::Error;
 
 use crate::card::{Deck, DiscardPile};
@@ -412,7 +410,7 @@ trait Action {
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct AddPlayerAction<'a> {
-    name: &'a str,
+    pub id: &'a str,
 }
 
 impl Action for AddPlayerAction<'_> {
@@ -420,14 +418,7 @@ impl Action for AddPlayerAction<'_> {
         // TODO: I don't like that I have to clone this here
         let mut context = context.clone();
 
-        let player_id = rand::thread_rng()
-            .sample_iter(&Alphanumeric)
-            .take(30)
-            .map(char::from)
-            .collect::<String>();
-        let player_name = self.name;
-
-        let player = Player::new(player_id.clone(), player_name);
+        let player = Player::new(&self.id);
         context.players.push(player);
 
         (None, Some(context))
