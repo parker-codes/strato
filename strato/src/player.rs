@@ -14,7 +14,7 @@ pub struct Player {
     /// A generated identifier.
     id: String,
     /// The player's chosen name or alias.
-    name: &'static str,
+    name: String,
     /// The card the user has in-hand after drawing from the deck or taking from the discard pile.
     holding: Option<Card>,
     /// The grid of cards that each player has. Starts as 4x3 and may shrink as columns match.
@@ -22,10 +22,10 @@ pub struct Player {
 }
 
 impl Player {
-    pub fn new(id: String, name: &'static str) -> Self {
+    pub fn new(id: String, name: &str) -> Self {
         Self {
             id,
-            name,
+            name: name.to_string(),
             holding: None,
             spread: PlayerSpread::new(),
         }

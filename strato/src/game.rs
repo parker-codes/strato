@@ -64,12 +64,7 @@ impl<'s> StratoGame<'s> {
         }
     }
 
-    fn update_state(&mut self, state: GameState) {
-        self.state = state;
-        self.notify(GameEvent::StateChange(&self.state));
-    }
-
-    pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 's) {
+    pub fn subscribe(&mut self, f: impl Fn(SubscriberEvent) + 's) {
         self.subscriber = Some(Rc::new(Subscriber::new(f)));
     }
 
@@ -77,26 +72,30 @@ impl<'s> StratoGame<'s> {
         self.subscriber = None;
     }
 
-    fn notify(&self, event: GameEvent) {
+    fn notify(&self, event: SubscriberEvent) {
         if let Some(subscriber) = &self.subscriber {
             (subscriber.0)(event);
         }
     }
 
-    pub fn add_player(&mut self, player_name: &'static str) -> Result<String, GameStartupError> {
-        if self.state == GameState::WaitingForPlayers {
-            let player_id = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(30)
-                .map(char::from)
-                .collect::<String>();
+    pub fn send(&mut self, event: GameEvent) {
+        let (state_change, context_change) = match event {
+            GameEvent::AddPlayer { .. } if self.state == GameState::WaitingForPlayers => {
+                let mut context = self.context.clone();
+                add_player(&mut context, &event);
+                (None, Some(context))
+            }
+            _ => (None, None),
+        };
 
-            let player = Player::new(player_id.clone(), player_name);
-            self.context.players.push(player);
+        if let Some(state_change) = state_change {
+            self.state = state_change;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
+        }
 
-            Ok(player_id)
-        } else {
-            Err(GameStartupError::PlayersListLocked)
+        if let Some(context_change) = context_change {
+            self.context = context_change;
+            self.notify(SubscriberEvent::ContextChanged(&self.context));
         }
     }
 
@@ -125,7 +124,8 @@ impl<'s> StratoGame<'s> {
         } else if self.context.players.len() < 2 {
             return Err(GameStartupError::NotEnoughPlayers);
         } else if self.state == GameState::WaitingForPlayers {
-            self.update_state(GameState::Startup);
+            self.state = GameState::Startup;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
 
             self.context.deck.shuffle();
             let top_card = self.context.deck.draw().unwrap();
@@ -135,9 +135,11 @@ impl<'s> StratoGame<'s> {
 
             if let Some(first_player_idx) = options.first_player_idx {
                 self.context.current_player_idx = Some(first_player_idx);
-                self.update_state(GameState::Active);
+                self.state = GameState::Active;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
             } else {
-                self.update_state(GameState::DetermineFirstPlayer);
+                self.state = GameState::DetermineFirstPlayer;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
             }
         }
 
@@ -211,7 +213,8 @@ impl<'s> StratoGame<'s> {
 
         if let Some(first_player_idx) = self.check_if_first_player_determined() {
             self.context.current_player_idx = Some(first_player_idx);
-            self.update_state(GameState::Active);
+            self.state = GameState::Active;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
         }
 
         Ok(())
@@ -326,7 +329,8 @@ impl<'s> StratoGame<'s> {
         if self.state == GameState::LastRound {
             // TODO: make this cleaner
             if player_idx == last_player_idx(players_count, self.context.finisher_idx.unwrap()) {
-                self.update_state(GameState::Ended);
+                self.state = GameState::Ended;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
                 self.handle_end();
                 return Ok(());
             }
@@ -334,7 +338,8 @@ impl<'s> StratoGame<'s> {
 
         if self.state == GameState::Active && player.spread.is_all_flipped() {
             self.context.finisher_idx = Some(player_idx);
-            self.update_state(GameState::LastRound);
+            self.state = GameState::LastRound;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
         }
 
         if player_idx == self.context.players.len() {
@@ -385,7 +390,7 @@ pub enum GameState {
     Ended,
 }
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameContext {
     pub players: Vec<Player>,
     pub current_player_idx: Option<usize>,
@@ -400,12 +405,35 @@ pub struct GameContext {
     winner_idx: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum GameEvent<'a> {
-    StateChange(&'a GameState),
+fn add_player(context: &mut GameContext, event: &GameEvent) -> String {
+    let player_id = rand::thread_rng()
+        .sample_iter(&Alphanumeric)
+        .take(30)
+        .map(char::from)
+        .collect::<String>();
+    let player_name = match event {
+        GameEvent::AddPlayer { name } => name,
+        // _ => panic!("Invalid event type"),
+    };
+
+    let player = Player::new(player_id.clone(), player_name);
+    context.players.push(player);
+
+    player_id
 }
 
-struct Subscriber<'s>(Box<dyn Fn(GameEvent) + 's>);
+#[derive(Debug, Clone, PartialEq)]
+pub enum GameEvent<'a> {
+    AddPlayer { name: &'a str },
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum SubscriberEvent<'a> {
+    StateChanged(&'a GameState),
+    ContextChanged(&'a GameContext),
+}
+
+struct Subscriber<'s>(Box<dyn Fn(SubscriberEvent) + 's>);
 
 impl std::fmt::Debug for Subscriber<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -414,7 +442,7 @@ impl std::fmt::Debug for Subscriber<'_> {
 }
 
 impl<'s> Subscriber<'s> {
-    fn new<F: Fn(GameEvent) + 's>(f: F) -> Self {
+    fn new<F: Fn(SubscriberEvent) + 's>(f: F) -> Self {
         Self(Box::new(f))
     }
 }
