@@ -4,9 +4,11 @@ use anyhow::Result;
 use thiserror::Error;
 
 use crate::card::{Deck, DiscardPile};
+use crate::event::{Action, GameEvent};
 use crate::player::{EndAction, Player, StartAction};
 use crate::subscription::{Subscribe, Subscriber, SubscriberEvent};
 
+// TODO: move errors to error module
 #[derive(Error, Debug, PartialEq)]
 pub enum GameStartupError {
     #[error("The game has already been started.")]
@@ -64,23 +66,37 @@ impl<'s> StratoGame<'s> {
     }
 
     pub fn send(&mut self, event: GameEvent) {
-        // TODO: Can generate this based on macro
-        let (state_change, context_change) = match event {
+        // TODO: Can generate the transitions/actions based on macro
+        let changes = match event {
             // TODO: With configurable events, action payloads, and guards here
-            GameEvent::AddPlayer(action) if self.state == GameState::WaitingForPlayers => {
+            GameEvent::GameStart(action)
+                if self.state == GameState::WaitingForPlayers
+                    && self.context.players.len() >= 2 =>
+            {
                 Action::execute(&action, self.context.clone(), self.state.clone())
             }
-            _ => (None, None),
+            GameEvent::GameStartWithOptions(action)
+                if self.state == GameState::WaitingForPlayers
+                    && self.context.players.len() >= 2 =>
+            {
+                Action::execute(&action, self.context.clone(), self.state.clone())
+            }
+            GameEvent::RegisterPlayer(action) if self.state == GameState::WaitingForPlayers => {
+                Action::execute(&action, self.context.clone(), self.state.clone())
+            }
+            _ => Err(anyhow::anyhow!("Invalid event for current state.")),
         };
 
-        if let Some(state_change) = state_change {
-            self.state = state_change;
-            self.notify(SubscriberEvent::StateChanged(&self.state));
-        }
+        if let Ok((state_change, context_change)) = changes {
+            if let Some(state_change) = state_change {
+                self.state = state_change;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
+            }
 
-        if let Some(context_change) = context_change {
-            self.context = context_change;
-            self.notify(SubscriberEvent::ContextChanged(&self.context));
+            if let Some(context_change) = context_change {
+                self.context = context_change;
+                self.notify(SubscriberEvent::ContextChanged(&self.context));
+            }
         }
     }
 
@@ -90,42 +106,6 @@ impl<'s> StratoGame<'s> {
 
     pub fn context(&self) -> GameContext {
         self.context.clone()
-    }
-
-    pub fn start(&mut self) -> Result<(), GameStartupError> {
-        self.handle_start(GameOptions::default())
-    }
-
-    pub fn start_with_options(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
-        self.handle_start(options)
-    }
-
-    fn handle_start(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
-        if self.state == GameState::Active {
-            return Err(GameStartupError::GameAlreadyStarted);
-        } else if self.context.players.len() < 2 {
-            return Err(GameStartupError::NotEnoughPlayers);
-        } else if self.state == GameState::WaitingForPlayers {
-            self.state = GameState::Startup;
-            self.notify(SubscriberEvent::StateChanged(&self.state));
-
-            self.context.deck.shuffle();
-            let top_card = self.context.deck.draw().unwrap();
-            self.context.discard_pile.put(top_card);
-            // TODO: shuffle player order?
-            self.deal_cards_to_players()?;
-
-            if let Some(first_player_idx) = options.first_player_idx {
-                self.context.current_player_idx = Some(first_player_idx);
-                self.state = GameState::Active;
-                self.notify(SubscriberEvent::StateChanged(&self.state));
-            } else {
-                self.state = GameState::DetermineFirstPlayer;
-                self.notify(SubscriberEvent::StateChanged(&self.state));
-            }
-        }
-
-        Ok(())
     }
 
     fn handle_end(&mut self) {
@@ -149,25 +129,6 @@ impl<'s> StratoGame<'s> {
         // TODO: handle case where there is a tie
 
         self.context.winner_idx = Some(winner_idx);
-    }
-
-    fn deal_cards_to_players(&mut self) -> Result<(), GameStartupError> {
-        if self.state == GameState::Startup {
-            for player in self.context.players.iter_mut() {
-                for row in 0..3 {
-                    for column in 0..4 {
-                        let card = self
-                            .context
-                            .deck
-                            .draw()
-                            .ok_or(GameStartupError::DeckEmpty)?;
-                        player.spread.place_at(card, row, column)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 
     pub fn player_flip_to_determine_who_is_first<'a, S: Into<String> + Clone>(
@@ -404,35 +365,7 @@ pub struct GameContext {
     winner_idx: Option<usize>,
 }
 
-type ActionResult = (Option<GameState>, Option<GameContext>);
-
-trait Action {
-    fn execute(&self, context: GameContext, state: GameState) -> ActionResult;
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct AddPlayerAction<'a> {
-    pub id: &'a str,
-}
-
-impl Action for AddPlayerAction<'_> {
-    fn execute(&self, context: GameContext, _: GameState) -> ActionResult {
-        // TODO: I don't like that I have to clone this here
-        let mut context = context.clone();
-
-        let player = Player::new(&self.id);
-        context.players.push(player);
-
-        (None, Some(context))
-    }
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum GameEvent<'a> {
-    AddPlayer(AddPlayerAction<'a>),
-}
-
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct GameOptions {
     pub first_player_idx: Option<usize>,
 }

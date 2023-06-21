@@ -1,6 +1,7 @@
 use strato::{
     self,
-    game::{AddPlayerAction, GameEvent::*, GameState, StratoGame},
+    event::{GameEvent::*, GameStartAction, RegisterPlayerAction},
+    game::{GameState, StratoGame},
     player::{generate_player_id, EndAction, StartAction},
 };
 
@@ -8,10 +9,10 @@ use strato::{
 fn full_game_1() {
     let mut game = StratoGame::new();
     let jackie_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &jackie_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&jackie_id)));
     let bryan_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &bryan_id }));
-    game.start().unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&bryan_id)));
+    game.send(GameStart(GameStartAction));
 
     /*
      * Determine first player

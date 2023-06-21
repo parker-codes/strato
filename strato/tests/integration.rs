@@ -6,10 +6,8 @@ use std::sync::{
 use strato::{
     self,
     card::Deck,
-    game::{
-        AddPlayerAction, GameEvent::*, GameOptions, GameStartupError, GameState, PlayerTurnError,
-        StratoGame,
-    },
+    event::{GameEvent::*, GameStartAction, GameStartWithOptionsAction, RegisterPlayerAction},
+    game::{GameOptions, GameStartupError, GameState, PlayerTurnError, StratoGame},
     player::{generate_player_id, EndAction, StartAction},
     selector::get_player,
     subscription::{Subscribe, SubscriberEvent},
@@ -18,13 +16,14 @@ use strato::{
 fn start_game_with_order() -> (StratoGame<'static>, String, String) {
     let mut game = StratoGame::new();
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     let player_2_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_2_id }));
-    game.start_with_options(GameOptions {
-        first_player_idx: Some(0),
-    })
-    .unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_2_id)));
+    game.send(GameStartWithOptions(GameStartWithOptionsAction(
+        GameOptions {
+            first_player_idx: Some(0),
+        },
+    )));
     (game, player_1_id, player_2_id)
 }
 
@@ -39,7 +38,7 @@ fn a_game_can_be_initialized() {
 fn players_can_be_added() {
     let mut game = StratoGame::new();
     let player_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_id)));
     assert_eq!(game.state(), GameState::WaitingForPlayers);
     assert_eq!(game.context().players.len(), 1);
 }
@@ -48,11 +47,10 @@ fn players_can_be_added() {
 fn a_game_can_be_started() {
     let mut game = StratoGame::new();
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     let player_2_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_2_id }));
-    let result = game.start();
-    assert!(result.is_ok());
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_2_id)));
+    game.send(GameStart(GameStartAction));
     assert_eq!(game.state(), GameState::DetermineFirstPlayer);
 }
 
@@ -62,21 +60,21 @@ fn a_game_can_be_started_with_specific_start_player() {
 
     let mut game = StratoGame::new();
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     let player_2_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_2_id }));
-    let result = game.start_with_options(GameOptions {
-        first_player_idx: Some(previous_winner_idx),
-    });
-    assert!(result.is_ok());
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_2_id)));
+    game.send(GameStartWithOptions(GameStartWithOptionsAction(
+        GameOptions {
+            first_player_idx: Some(previous_winner_idx),
+        },
+    )));
     assert_eq!(game.state(), GameState::Active);
 }
 
 #[test]
 fn cant_start_without_players() {
     let mut game = StratoGame::new();
-    let result = game.start();
-    assert_eq!(result.unwrap_err(), GameStartupError::NotEnoughPlayers);
+    game.send(GameStart(GameStartAction));
     assert_eq!(game.state(), GameState::WaitingForPlayers);
 }
 
@@ -103,11 +101,9 @@ fn a_started_game_deals_cards_to_players() {
 fn starting_multiple_times_is_inconsequential() {
     let (mut game, _, _) = start_game_with_order();
     let deck_snapshot = game.context().deck.clone();
-    assert!(game.start().is_err());
-    assert_eq!(
-        game.start().unwrap_err(),
-        GameStartupError::GameAlreadyStarted
-    );
+    game.send(GameStart(GameStartAction));
+    assert_eq!(game.state(), GameState::Active);
+    game.send(GameStart(GameStartAction));
     assert_eq!(game.state(), GameState::Active);
     assert_eq!(deck_snapshot, game.context().deck);
 }
@@ -116,9 +112,9 @@ fn starting_multiple_times_is_inconsequential() {
 fn can_list_players() {
     let mut game = StratoGame::new();
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     let player_2_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_2_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_2_id)));
     let player_1 = get_player(game.context(), player_1_id).unwrap();
     let player_2 = get_player(game.context(), player_2_id).unwrap();
     assert!(game
@@ -132,17 +128,18 @@ fn can_list_players() {
 fn cant_change_players_after_game_starts() {
     let mut game = StratoGame::new();
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     let player_2_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_2_id }));
-    game.start_with_options(GameOptions {
-        first_player_idx: Some(0),
-    })
-    .unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_2_id)));
+    game.send(GameStartWithOptions(GameStartWithOptionsAction(
+        GameOptions {
+            first_player_idx: Some(0),
+        },
+    )));
     assert_eq!(game.state(), GameState::Active);
 
     let player_3_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_3_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_3_id)));
     assert_eq!(game.context().players.len(), 2);
 }
 
@@ -248,13 +245,14 @@ fn cant_start_turn_twice() {
 fn multiple_players_session_1() {
     let mut game = StratoGame::new();
     let cassie_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &cassie_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&cassie_id)));
     let james_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &james_id }));
-    game.start_with_options(GameOptions {
-        first_player_idx: Some(0),
-    })
-    .unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&james_id)));
+    game.send(GameStartWithOptions(GameStartWithOptionsAction(
+        GameOptions {
+            first_player_idx: Some(0),
+        },
+    )));
 
     assert_eq!(game.state(), GameState::Active);
 
@@ -319,15 +317,14 @@ fn can_subscribe_to_changes() {
     });
 
     let player_1_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &player_1_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&player_1_id)));
     // not tracked
-    game.send(AddPlayer(AddPlayerAction {
-        id: &generate_player_id(),
-    }));
-    game.start_with_options(GameOptions {
-        first_player_idx: Some(0),
-    })
-    .unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&generate_player_id())));
+    game.send(GameStartWithOptions(GameStartWithOptionsAction(
+        GameOptions {
+            first_player_idx: Some(0),
+        },
+    )));
 
     game.start_player_turn(&player_1_id, StartAction::DrawFromDeck)
         .expect("Couldn't start turn");
@@ -340,10 +337,10 @@ fn can_subscribe_to_changes() {
 fn can_flip_to_determine_who_is_first() {
     let mut game = StratoGame::new();
     let cassie_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &cassie_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&cassie_id)));
     let james_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &james_id }));
-    game.start().unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&james_id)));
+    game.send(GameStart(GameStartAction));
 
     assert_eq!(game.state(), GameState::DetermineFirstPlayer);
 
@@ -376,12 +373,10 @@ fn can_flip_to_determine_who_is_first() {
 fn cant_flip_too_many_cards_to_determine_first_player() {
     let mut game = StratoGame::new();
     let cassie_id = generate_player_id();
-    game.send(AddPlayer(AddPlayerAction { id: &cassie_id }));
+    game.send(RegisterPlayer(RegisterPlayerAction(&cassie_id)));
     // untracked
-    game.send(AddPlayer(AddPlayerAction {
-        id: &generate_player_id(),
-    }));
-    game.start().unwrap();
+    game.send(RegisterPlayer(RegisterPlayerAction(&generate_player_id())));
+    game.send(GameStart(GameStartAction));
 
     assert_eq!(game.state(), GameState::DetermineFirstPlayer);
 
