@@ -80,10 +80,8 @@ impl<'s> StratoGame<'s> {
 
     pub fn send(&mut self, event: GameEvent) {
         let (state_change, context_change) = match event {
-            GameEvent::AddPlayer { .. } if self.state == GameState::WaitingForPlayers => {
-                let mut context = self.context.clone();
-                add_player(&mut context, &event);
-                (None, Some(context))
+            GameEvent::AddPlayer(action) if self.state == GameState::WaitingForPlayers => {
+                Action::execute(&action, self.context.clone(), self.state.clone())
             }
             _ => (None, None),
         };
@@ -390,6 +388,7 @@ pub enum GameState {
     Ended,
 }
 
+// TODO: could create a "Patch" attribute macro for context to allow partial updates
 #[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameContext {
     pub players: Vec<Player>,
@@ -405,26 +404,39 @@ pub struct GameContext {
     winner_idx: Option<usize>,
 }
 
-fn add_player(context: &mut GameContext, event: &GameEvent) -> String {
-    let player_id = rand::thread_rng()
-        .sample_iter(&Alphanumeric)
-        .take(30)
-        .map(char::from)
-        .collect::<String>();
-    let player_name = match event {
-        GameEvent::AddPlayer { name } => name,
-        // _ => panic!("Invalid event type"),
-    };
+type ActionResult = (Option<GameState>, Option<GameContext>);
 
-    let player = Player::new(player_id.clone(), player_name);
-    context.players.push(player);
+trait Action {
+    fn execute(&self, context: GameContext, state: GameState) -> ActionResult;
+}
 
-    player_id
+#[derive(Debug, Clone, PartialEq)]
+pub struct AddPlayerAction<'a> {
+    name: &'a str,
+}
+
+impl Action for AddPlayerAction<'_> {
+    fn execute(&self, context: GameContext, _: GameState) -> ActionResult {
+        // TODO: I don't like that I have to clone this here
+        let mut context = context.clone();
+
+        let player_id = rand::thread_rng()
+            .sample_iter(&Alphanumeric)
+            .take(30)
+            .map(char::from)
+            .collect::<String>();
+        let player_name = self.name;
+
+        let player = Player::new(player_id.clone(), player_name);
+        context.players.push(player);
+
+        (None, Some(context))
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameEvent<'a> {
-    AddPlayer { name: &'a str },
+    AddPlayer(AddPlayerAction<'a>),
 }
 
 #[derive(Debug, Clone, PartialEq)]
