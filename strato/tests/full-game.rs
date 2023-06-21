@@ -1,14 +1,16 @@
 use strato::{
     self,
-    game::{GameOptions, GameState, StratoGame},
-    player::{EndAction, StartAction},
+    game::{AddPlayerAction, GameEvent::*, GameState, StratoGame},
+    player::{generate_player_id, EndAction, StartAction},
 };
 
 // #[test]
 fn full_game_1() {
     let mut game = StratoGame::new();
-    let jackie_id = game.add_player("Jackie").unwrap();
-    let bryan_id = game.add_player("Bryan").unwrap();
+    let jackie_id = generate_player_id();
+    game.send(AddPlayer(AddPlayerAction { id: &jackie_id }));
+    let bryan_id = generate_player_id();
+    game.send(AddPlayer(AddPlayerAction { id: &bryan_id }));
     game.start().unwrap();
 
     /*
