@@ -8,9 +8,10 @@ use strato::{
     card::Deck,
     game::{
         AddPlayerAction, GameEvent::*, GameOptions, GameStartupError, GameState, PlayerTurnError,
-        StratoGame, SubscriberEvent,
+        StratoGame,
     },
     player::{generate_player_id, EndAction, StartAction},
+    subscription::{Subscribe, SubscriberEvent},
 };
 
 fn start_game_with_order() -> (StratoGame<'static>, String, String) {

@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::card::{Deck, DiscardPile};
 use crate::player::{EndAction, Player, StartAction};
+use crate::subscription::{Subscribe, Subscriber, SubscriberEvent};
 
 #[derive(Error, Debug, PartialEq)]
 pub enum GameStartupError {
@@ -62,22 +63,10 @@ impl<'s> StratoGame<'s> {
         }
     }
 
-    pub fn subscribe(&mut self, f: impl Fn(SubscriberEvent) + 's) {
-        self.subscriber = Some(Rc::new(Subscriber::new(f)));
-    }
-
-    pub fn unsubscribe(&mut self) {
-        self.subscriber = None;
-    }
-
-    fn notify(&self, event: SubscriberEvent) {
-        if let Some(subscriber) = &self.subscriber {
-            (subscriber.0)(event);
-        }
-    }
-
     pub fn send(&mut self, event: GameEvent) {
+        // TODO: Can generate this based on macro
         let (state_change, context_change) = match event {
+            // TODO: With configurable events, action payloads, and guards here
             GameEvent::AddPlayer(action) if self.state == GameState::WaitingForPlayers => {
                 Action::execute(&action, self.context.clone(), self.state.clone())
             }
@@ -369,6 +358,22 @@ impl<'s> StratoGame<'s> {
     }
 }
 
+impl<'s> Subscribe<'s> for StratoGame<'s> {
+    fn subscribe(&mut self, f: impl Fn(SubscriberEvent) + 's) {
+        self.subscriber = Some(Rc::new(Subscriber::new(f)));
+    }
+
+    fn unsubscribe(&mut self) {
+        self.subscriber = None;
+    }
+
+    fn notify(&self, event: SubscriberEvent) {
+        if let Some(subscriber) = &self.subscriber {
+            subscriber.emit(event);
+        }
+    }
+}
+
 #[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum GameState {
     /// In the waiting room for players to join.
@@ -428,26 +433,6 @@ impl Action for AddPlayerAction<'_> {
 #[derive(Debug, Clone, PartialEq)]
 pub enum GameEvent<'a> {
     AddPlayer(AddPlayerAction<'a>),
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub enum SubscriberEvent<'a> {
-    StateChanged(&'a GameState),
-    ContextChanged(&'a GameContext),
-}
-
-struct Subscriber<'s>(Box<dyn Fn(SubscriberEvent) + 's>);
-
-impl std::fmt::Debug for Subscriber<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Subscriber")
-    }
-}
-
-impl<'s> Subscriber<'s> {
-    fn new<F: Fn(SubscriberEvent) + 's>(f: F) -> Self {
-        Self(Box::new(f))
-    }
 }
 
 #[derive(Default, Debug)]
