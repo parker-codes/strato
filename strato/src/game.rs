@@ -49,8 +49,8 @@ pub enum PlayerTurnError {
 
 #[derive(Debug, Clone)]
 pub struct StratoGame<'s> {
-    pub state: GameState,
-    pub context: GameContext,
+    state: GameState,
+    context: GameContext,
     subscriber: Option<Rc<Subscriber<'s>>>,
 }
 
@@ -84,15 +84,12 @@ impl<'s> StratoGame<'s> {
         }
     }
 
-    pub fn list_players(&self) -> Vec<Player> {
-        self.context.players.clone()
+    pub fn state(&self) -> GameState {
+        self.state.clone()
     }
 
-    pub fn get_player<S: Into<String> + Clone>(&self, player_id: S) -> Option<&Player> {
-        self.context
-            .players
-            .iter()
-            .find(|p| p.id() == player_id.clone().into())
+    pub fn context(&self) -> GameContext {
+        self.context.clone()
     }
 
     pub fn start(&mut self) -> Result<(), GameStartupError> {
