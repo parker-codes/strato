@@ -2,7 +2,7 @@ use anyhow::Result;
 use rand::Rng;
 use thiserror::Error;
 
-#[derive(PartialEq, Copy, Clone)]
+#[derive(PartialEq, Clone, Copy)]
 pub struct Card {
     value: CardValue,
     flipped: bool,
@@ -48,7 +48,7 @@ impl std::fmt::Debug for Card {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub enum CardValue {
     NegativeTwo,
     NegativeOne,

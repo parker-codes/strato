@@ -368,7 +368,7 @@ impl<'s> StratoGame<'s> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum GameState {
     /// In the waiting room for players to join.
     #[default]
