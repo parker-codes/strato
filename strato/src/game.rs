@@ -1,13 +1,14 @@
 use std::rc::Rc;
 
 use anyhow::Result;
-use rand::distributions::Alphanumeric;
-use rand::Rng;
 use thiserror::Error;
 
 use crate::card::{Deck, DiscardPile};
+use crate::event::{Action, GameEvent};
 use crate::player::{EndAction, Player, StartAction};
+use crate::subscription::{Subscribe, Subscriber, SubscriberEvent};
 
+// TODO: move errors to error module
 #[derive(Error, Debug, PartialEq)]
 pub enum GameStartupError {
     #[error("The game has already been started.")]
@@ -50,8 +51,8 @@ pub enum PlayerTurnError {
 
 #[derive(Debug, Clone)]
 pub struct StratoGame<'s> {
-    pub state: GameState,
-    pub context: GameContext,
+    state: GameState,
+    context: GameContext,
     subscriber: Option<Rc<Subscriber<'s>>>,
 }
 
@@ -64,84 +65,47 @@ impl<'s> StratoGame<'s> {
         }
     }
 
-    fn update_state(&mut self, state: GameState) {
-        self.state = state;
-        self.notify(GameEvent::StateChange(&self.state));
-    }
+    pub fn send(&mut self, event: GameEvent) {
+        // TODO: Can generate the transitions/actions based on macro
+        let changes = match event {
+            // TODO: With configurable events, action payloads, and guards here
+            GameEvent::GameStart(action)
+                if self.state == GameState::WaitingForPlayers
+                    && self.context.players.len() >= 2 =>
+            {
+                Action::execute(&action, self.context.clone(), self.state.clone())
+            }
+            GameEvent::GameStartWithOptions(action)
+                if self.state == GameState::WaitingForPlayers
+                    && self.context.players.len() >= 2 =>
+            {
+                Action::execute(&action, self.context.clone(), self.state.clone())
+            }
+            GameEvent::RegisterPlayer(action) if self.state == GameState::WaitingForPlayers => {
+                Action::execute(&action, self.context.clone(), self.state.clone())
+            }
+            _ => Err(anyhow::anyhow!("Invalid event for current state.")),
+        };
 
-    pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 's) {
-        self.subscriber = Some(Rc::new(Subscriber::new(f)));
-    }
+        if let Ok((state_change, context_change)) = changes {
+            if let Some(state_change) = state_change {
+                self.state = state_change;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
+            }
 
-    pub fn unsubscribe(&mut self) {
-        self.subscriber = None;
-    }
-
-    fn notify(&self, event: GameEvent) {
-        if let Some(subscriber) = &self.subscriber {
-            (subscriber.0)(event);
-        }
-    }
-
-    pub fn add_player(&mut self, player_name: &'static str) -> Result<String, GameStartupError> {
-        if self.state == GameState::WaitingForPlayers {
-            let player_id = rand::thread_rng()
-                .sample_iter(&Alphanumeric)
-                .take(30)
-                .map(char::from)
-                .collect::<String>();
-
-            let player = Player::new(player_id.clone(), player_name);
-            self.context.players.push(player);
-
-            Ok(player_id)
-        } else {
-            Err(GameStartupError::PlayersListLocked)
-        }
-    }
-
-    pub fn list_players(&self) -> Vec<Player> {
-        self.context.players.clone()
-    }
-
-    pub fn get_player<S: Into<String> + Clone>(&self, player_id: S) -> Option<&Player> {
-        self.context
-            .players
-            .iter()
-            .find(|p| p.id() == player_id.clone().into())
-    }
-
-    pub fn start(&mut self) -> Result<(), GameStartupError> {
-        self.handle_start(GameOptions::default())
-    }
-
-    pub fn start_with_options(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
-        self.handle_start(options)
-    }
-
-    fn handle_start(&mut self, options: GameOptions) -> Result<(), GameStartupError> {
-        if self.state == GameState::Active {
-            return Err(GameStartupError::GameAlreadyStarted);
-        } else if self.context.players.len() < 2 {
-            return Err(GameStartupError::NotEnoughPlayers);
-        } else if self.state == GameState::WaitingForPlayers {
-            self.update_state(GameState::Startup);
-
-            self.context.deck.shuffle();
-            let top_card = self.context.deck.draw().unwrap();
-            self.context.discard_pile.put(top_card);
-            // TODO: shuffle player order?
-            self.deal_cards_to_players()?;
-
-            if let Some(first_player_idx) = options.first_player_idx {
-                self.context.current_player_idx = Some(first_player_idx);
-                self.update_state(GameState::Active);
-            } else {
-                self.update_state(GameState::DetermineFirstPlayer);
+            if let Some(context_change) = context_change {
+                self.context = context_change;
+                self.notify(SubscriberEvent::ContextChanged(&self.context));
             }
         }
+    }
 
-        Ok(())
+    pub fn state(&self) -> GameState {
+        self.state.clone()
+    }
+
+    pub fn context(&self) -> GameContext {
+        self.context.clone()
     }
 
     fn handle_end(&mut self) {
@@ -165,25 +129,6 @@ impl<'s> StratoGame<'s> {
         // TODO: handle case where there is a tie
 
         self.context.winner_idx = Some(winner_idx);
-    }
-
-    fn deal_cards_to_players(&mut self) -> Result<(), GameStartupError> {
-        if self.state == GameState::Startup {
-            for player in self.context.players.iter_mut() {
-                for row in 0..3 {
-                    for column in 0..4 {
-                        let card = self
-                            .context
-                            .deck
-                            .draw()
-                            .ok_or(GameStartupError::DeckEmpty)?;
-                        player.spread.place_at(card, row, column)?;
-                    }
-                }
-            }
-        }
-
-        Ok(())
     }
 
     pub fn player_flip_to_determine_who_is_first<'a, S: Into<String> + Clone>(
@@ -211,7 +156,8 @@ impl<'s> StratoGame<'s> {
 
         if let Some(first_player_idx) = self.check_if_first_player_determined() {
             self.context.current_player_idx = Some(first_player_idx);
-            self.update_state(GameState::Active);
+            self.state = GameState::Active;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
         }
 
         Ok(())
@@ -326,7 +272,8 @@ impl<'s> StratoGame<'s> {
         if self.state == GameState::LastRound {
             // TODO: make this cleaner
             if player_idx == last_player_idx(players_count, self.context.finisher_idx.unwrap()) {
-                self.update_state(GameState::Ended);
+                self.state = GameState::Ended;
+                self.notify(SubscriberEvent::StateChanged(&self.state));
                 self.handle_end();
                 return Ok(());
             }
@@ -334,7 +281,8 @@ impl<'s> StratoGame<'s> {
 
         if self.state == GameState::Active && player.spread.is_all_flipped() {
             self.context.finisher_idx = Some(player_idx);
-            self.update_state(GameState::LastRound);
+            self.state = GameState::LastRound;
+            self.notify(SubscriberEvent::StateChanged(&self.state));
         }
 
         if player_idx == self.context.players.len() {
@@ -368,7 +316,23 @@ impl<'s> StratoGame<'s> {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Clone)]
+impl<'s> Subscribe<'s> for StratoGame<'s> {
+    fn subscribe(&mut self, f: impl Fn(SubscriberEvent) + 's) {
+        self.subscriber = Some(Rc::new(Subscriber::new(f)));
+    }
+
+    fn unsubscribe(&mut self) {
+        self.subscriber = None;
+    }
+
+    fn notify(&self, event: SubscriberEvent) {
+        if let Some(subscriber) = &self.subscriber {
+            subscriber.emit(event);
+        }
+    }
+}
+
+#[derive(Debug, Default, PartialEq, Clone, Copy)]
 pub enum GameState {
     /// In the waiting room for players to join.
     #[default]
@@ -385,7 +349,8 @@ pub enum GameState {
     Ended,
 }
 
-#[derive(Debug, Default, Clone)]
+// TODO: could create a "Patch" attribute macro for context to allow partial updates
+#[derive(Debug, Default, Clone, PartialEq)]
 pub struct GameContext {
     pub players: Vec<Player>,
     pub current_player_idx: Option<usize>,
@@ -400,26 +365,7 @@ pub struct GameContext {
     winner_idx: Option<usize>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum GameEvent<'a> {
-    StateChange(&'a GameState),
-}
-
-struct Subscriber<'s>(Box<dyn Fn(GameEvent) + 's>);
-
-impl std::fmt::Debug for Subscriber<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Subscriber")
-    }
-}
-
-impl<'s> Subscriber<'s> {
-    fn new<F: Fn(GameEvent) + 's>(f: F) -> Self {
-        Self(Box::new(f))
-    }
-}
-
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialEq)]
 pub struct GameOptions {
     pub first_player_idx: Option<usize>,
 }
