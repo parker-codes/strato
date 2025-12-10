@@ -44,6 +44,10 @@ impl Player {
         self.holding
     }
 
+    pub fn holding_value(&self) -> Option<crate::card::CardValue> {
+        self.holding.and_then(|card| card.face_value())
+    }
+
     /// The Game gives the player the card they drew or took during the start of their
     /// turn, to use when they end their turn.
     pub fn hold(&mut self, mut card: Card) -> Result<(), PlayerActionError> {

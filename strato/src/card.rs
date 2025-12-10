@@ -31,6 +31,14 @@ impl Card {
     pub fn is_flipped(&self) -> bool {
         self.flipped
     }
+
+    pub fn face_value(&self) -> Option<CardValue> {
+        if self.is_flipped() {
+            Some(self.value)
+        } else {
+            None
+        }
+    }
 }
 
 impl std::fmt::Debug for Card {
@@ -222,6 +230,10 @@ impl DiscardPile {
     pub fn put(&mut self, card: Card) {
         self.0.push(card)
     }
+
+    pub fn peek(&self) -> Option<&Card> {
+        self.0.last()
+    }
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -243,6 +255,13 @@ type ThreeByFourGrid = [FourColumns; 3];
 
 #[derive(Default, Clone, PartialEq)]
 pub struct PlayerSpread(ThreeByFourGrid);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CellView {
+    Empty,
+    Hidden,
+    Revealed(CardValue),
+}
 
 impl PlayerSpread {
     /// Create a new deck which consists of ten full sets of -2 through 12.
@@ -267,6 +286,23 @@ impl PlayerSpread {
                         }
                         // otherwise
                         None
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn view_cells(&self) -> Vec<Vec<CellView>> {
+        self.0
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|slot| match slot {
+                        None => CellView::Empty,
+                        Some(card) => match card.face_value() {
+                            Some(value) => CellView::Revealed(value),
+                            None => CellView::Hidden,
+                        },
                     })
                     .collect::<Vec<_>>()
             })
