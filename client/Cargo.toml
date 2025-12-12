@@ -8,6 +8,6 @@ edition = "2021"
 [dependencies]
 strato = { path = "../strato" }
 getrandom = { version = "0.2.7", features = ["js"] }
-leptos = { version = "0.6", features = ["csr"] }
+leptos = { version = "0.8.14", features = ["csr"] }
 wasm-bindgen = "0.2"
 console_error_panic_hook = "0.1"

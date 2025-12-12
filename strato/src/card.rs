@@ -16,7 +16,7 @@ impl Card {
         }
     }
 
-    pub fn get_value(&self) -> Option<CardValue> {
+    pub fn face_value(&self) -> Option<CardValue> {
         if self.is_flipped() {
             Some(self.value)
         } else {
@@ -30,14 +30,6 @@ impl Card {
 
     pub fn is_flipped(&self) -> bool {
         self.flipped
-    }
-
-    pub fn face_value(&self) -> Option<CardValue> {
-        if self.is_flipped() {
-            Some(self.value)
-        } else {
-            None
-        }
     }
 }
 
@@ -56,7 +48,7 @@ impl std::fmt::Debug for Card {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum CardValue {
     NegativeTwo,
     NegativeOne,
@@ -500,19 +492,19 @@ mod tests {
     #[test]
     fn can_determine_card_value() {
         let unflipped = Card::new(5);
-        assert_eq!(unflipped.get_value(), None);
+        assert_eq!(unflipped.face_value(), None);
 
         let mut negative_two = Card::new(-2);
         negative_two.flip();
-        assert_eq!(negative_two.get_value(), Some(CardValue::NegativeTwo));
+        assert_eq!(negative_two.face_value(), Some(CardValue::NegativeTwo));
 
         let mut zero = Card::new(0);
         zero.flip();
-        assert_eq!(zero.get_value(), Some(CardValue::Zero));
+        assert_eq!(zero.face_value(), Some(CardValue::Zero));
 
         let mut twelve = Card::new(12);
         twelve.flip();
-        assert_eq!(twelve.get_value(), Some(CardValue::Twelve));
+        assert_eq!(twelve.face_value(), Some(CardValue::Twelve));
     }
 
     #[test]

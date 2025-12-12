@@ -1,6 +1,7 @@
 use anyhow::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::sync::Arc;
 use thiserror::Error;
 
 use crate::card::{CardValue, CellView, Deck, DiscardPile};
@@ -63,8 +64,9 @@ impl StratoGame {
     }
 
     fn update_state(&mut self, state: GameState) {
+        let state_clone = state.clone();
         self.state = state;
-        self.notify(GameEvent::StateChange(self.state));
+        self.notify(GameEvent::StateChange(state_clone));
     }
 
     pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 'static) {
@@ -436,7 +438,7 @@ pub enum GameEvent {
 }
 
 #[derive(Clone)]
-struct Subscriber(Box<dyn Fn(GameEvent)>);
+struct Subscriber(Arc<dyn Fn(GameEvent)>);
 
 impl std::fmt::Debug for Subscriber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -446,7 +448,7 @@ impl std::fmt::Debug for Subscriber {
 
 impl Subscriber {
     fn new<F: Fn(GameEvent) + 'static>(f: F) -> Self {
-        Self(Box::new(f))
+        Self(Arc::new(f))
     }
 }
 
