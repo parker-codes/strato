@@ -1,11 +1,10 @@
-use std::rc::Rc;
-
 use anyhow::Result;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
+use std::sync::Arc;
 use thiserror::Error;
 
-use crate::card::{Deck, DiscardPile};
+use crate::card::{CardValue, CellView, Deck, DiscardPile};
 use crate::player::{EndAction, Player, StartAction};
 
 #[derive(Error, Debug, PartialEq)]
@@ -49,13 +48,13 @@ pub enum PlayerTurnError {
 }
 
 #[derive(Debug, Clone)]
-pub struct StratoGame<'s> {
+pub struct StratoGame {
     pub state: GameState,
     pub context: GameContext,
-    subscriber: Option<Rc<Subscriber<'s>>>,
+    subscriber: Option<Subscriber>,
 }
 
-impl<'s> StratoGame<'s> {
+impl StratoGame {
     pub fn new() -> Self {
         Self {
             state: GameState::default(),
@@ -65,12 +64,13 @@ impl<'s> StratoGame<'s> {
     }
 
     fn update_state(&mut self, state: GameState) {
+        let state_clone = state.clone();
         self.state = state;
-        self.notify(GameEvent::StateChange(&self.state));
+        self.notify(GameEvent::StateChange(state_clone));
     }
 
-    pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 's) {
-        self.subscriber = Some(Rc::new(Subscriber::new(f)));
+    pub fn subscribe(&mut self, f: impl Fn(GameEvent) + 'static) {
+        self.subscriber = Some(Subscriber::new(f));
     }
 
     pub fn unsubscribe(&mut self) {
@@ -79,7 +79,39 @@ impl<'s> StratoGame<'s> {
 
     fn notify(&self, event: GameEvent) {
         if let Some(subscriber) = &self.subscriber {
-            (subscriber.0)(event);
+            subscriber.0(event);
+        }
+    }
+
+    pub fn snapshot(&self) -> GameSnapshot {
+        let players = self
+            .context
+            .players
+            .iter()
+            .map(|p| PlayerView {
+                id: p.id(),
+                name: p.name(),
+                spread: p.spread.view_cells(),
+                holding: p.holding_value(),
+                flipped: p.spread.flipped_cards(),
+                score: p.spread.score(),
+            })
+            .collect();
+
+        GameSnapshot {
+            state: self.state.clone(),
+            deck_size: self.context.deck.size(),
+            discard_size: self.context.discard_pile.size(),
+            discard_top: self
+                .context
+                .discard_pile
+                .peek()
+                .and_then(|c| c.face_value()),
+            players,
+            current_player_idx: self.context.current_player_idx,
+            round: self.context.round,
+            finisher_idx: self.context.finisher_idx,
+            winner_idx: self.context.winner_idx,
         }
     }
 
@@ -401,27 +433,51 @@ pub struct GameContext {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum GameEvent<'a> {
-    StateChange(&'a GameState),
+pub enum GameEvent {
+    StateChange(GameState),
 }
 
-struct Subscriber<'s>(Box<dyn Fn(GameEvent) + 's>);
+#[derive(Clone)]
+struct Subscriber(Arc<dyn Fn(GameEvent)>);
 
-impl std::fmt::Debug for Subscriber<'_> {
+impl std::fmt::Debug for Subscriber {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Subscriber")
     }
 }
 
-impl<'s> Subscriber<'s> {
-    fn new<F: Fn(GameEvent) + 's>(f: F) -> Self {
-        Self(Box::new(f))
+impl Subscriber {
+    fn new<F: Fn(GameEvent) + 'static>(f: F) -> Self {
+        Self(Arc::new(f))
     }
 }
 
 #[derive(Default, Debug)]
 pub struct GameOptions {
     pub first_player_idx: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct GameSnapshot {
+    pub state: GameState,
+    pub deck_size: usize,
+    pub discard_size: usize,
+    pub discard_top: Option<CardValue>,
+    pub players: Vec<PlayerView>,
+    pub current_player_idx: Option<usize>,
+    pub round: usize,
+    pub finisher_idx: Option<usize>,
+    pub winner_idx: Option<usize>,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PlayerView {
+    pub id: String,
+    pub name: String,
+    pub spread: Vec<Vec<CellView>>,
+    pub holding: Option<CardValue>,
+    pub flipped: usize,
+    pub score: i32,
 }
 
 fn last_player_idx(players_count: usize, finisher_idx: usize) -> usize {

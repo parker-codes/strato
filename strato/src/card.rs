@@ -16,7 +16,7 @@ impl Card {
         }
     }
 
-    pub fn get_value(&self) -> Option<CardValue> {
+    pub fn face_value(&self) -> Option<CardValue> {
         if self.is_flipped() {
             Some(self.value)
         } else {
@@ -48,7 +48,7 @@ impl std::fmt::Debug for Card {
     }
 }
 
-#[derive(Debug, PartialEq, Copy, Clone)]
+#[derive(Debug, Eq, PartialEq, Copy, Clone)]
 pub enum CardValue {
     NegativeTwo,
     NegativeOne,
@@ -222,6 +222,10 @@ impl DiscardPile {
     pub fn put(&mut self, card: Card) {
         self.0.push(card)
     }
+
+    pub fn peek(&self) -> Option<&Card> {
+        self.0.last()
+    }
 }
 
 #[derive(Error, Debug, PartialEq)]
@@ -243,6 +247,13 @@ type ThreeByFourGrid = [FourColumns; 3];
 
 #[derive(Default, Clone, PartialEq)]
 pub struct PlayerSpread(ThreeByFourGrid);
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CellView {
+    Empty,
+    Hidden,
+    Revealed(CardValue),
+}
 
 impl PlayerSpread {
     /// Create a new deck which consists of ten full sets of -2 through 12.
@@ -267,6 +278,23 @@ impl PlayerSpread {
                         }
                         // otherwise
                         None
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .collect::<Vec<_>>()
+    }
+
+    pub fn view_cells(&self) -> Vec<Vec<CellView>> {
+        self.0
+            .iter()
+            .map(|row| {
+                row.iter()
+                    .map(|slot| match slot {
+                        None => CellView::Empty,
+                        Some(card) => match card.face_value() {
+                            Some(value) => CellView::Revealed(value),
+                            None => CellView::Hidden,
+                        },
                     })
                     .collect::<Vec<_>>()
             })
@@ -464,19 +492,19 @@ mod tests {
     #[test]
     fn can_determine_card_value() {
         let unflipped = Card::new(5);
-        assert_eq!(unflipped.get_value(), None);
+        assert_eq!(unflipped.face_value(), None);
 
         let mut negative_two = Card::new(-2);
         negative_two.flip();
-        assert_eq!(negative_two.get_value(), Some(CardValue::NegativeTwo));
+        assert_eq!(negative_two.face_value(), Some(CardValue::NegativeTwo));
 
         let mut zero = Card::new(0);
         zero.flip();
-        assert_eq!(zero.get_value(), Some(CardValue::Zero));
+        assert_eq!(zero.face_value(), Some(CardValue::Zero));
 
         let mut twelve = Card::new(12);
         twelve.flip();
-        assert_eq!(twelve.get_value(), Some(CardValue::Twelve));
+        assert_eq!(twelve.face_value(), Some(CardValue::Twelve));
     }
 
     #[test]

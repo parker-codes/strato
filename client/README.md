@@ -4,9 +4,9 @@
 
 ## Dev
 
-This project uses [Dioxus](https://dioxuslabs.com/) (a Rust-Wasm framework) and does also require some Node to run the [Tailwind](https://tailwindcss.com/) CLI (CSS framework) to build the stylesheet.
+This project uses [Leptos](https://leptos.dev/) (a Rust-Wasm framework).
 
-In one terminal run `pnpm run tw:watch` to start the Tailwind CLI for styles. In another terminal run `trunk serve` which bundles the assets and serves at [localhost:8080](http://localhost:8080).
+Run `trunk serve` which bundles the assets and serves at [localhost:8080](http://localhost:8080).
 
 ## Release
 
